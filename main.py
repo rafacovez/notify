@@ -23,7 +23,7 @@ def message_handler(message):
     message_text = message.text
     chat_id = message.chat.id
     bot_help_reply = "I can help you get notified when your friends add or remove a song from the playlists you share together.\n\t\n\tYou can make me do this for you by using these commands:\n\t\n\tSet up Spotify:\n\t/logintospotify\n\t\n\tAdd a playlist:\n\t/addplaylist\n\t\n\tRemove a playlist:\n\t/removeplaylist"
-    bot_contribute_reply = "My creator didn't think about that command. <a href='https://github.com/rafacovez/notify'>is it a good idea though?</a>"
+    bot_contribute_reply = "My creator didn't think about that command, <a href='https://github.com/rafacovez/notify'>is it a good idea</a> though?"
     if message_text.startswith('/'):
         # Handle unknown commands
         bot.send_message(chat_id, bot_contribute_reply, parse_mode="HTML")
