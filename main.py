@@ -1,7 +1,11 @@
 import telebot
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # Enter your Telegram Bot API token here
-TOKEN = '6060982771:AAF_WeWw9CYT737td2YZupDF4ivZhKkYp6E'
+TOKEN = os.getenv("BOT_API_TOKEN")
 
 # Initialize the bot
 bot = telebot.TeleBot(TOKEN)
