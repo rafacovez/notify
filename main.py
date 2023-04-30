@@ -1,21 +1,15 @@
-import telegram
-from telegram.ext import Updater, CommandHandler
+import telebot
 
-# Replace YOUR_BOT_TOKEN with your actual bot token
-bot_token = "6060982771:AAF_WeWw9CYT737td2YZupDF4ivZhKkYp6E"
-bot_username = "@playlistNotificationBot"
+# Enter your Telegram Bot API token here
+TOKEN = '6060982771:AAF_WeWw9CYT737td2YZupDF4ivZhKkYp6E'
 
-# Define the /start command handler
-def start(update, context):
-    # Send a message to the user who typed /start
-    context.bot.send_message(chat_id=update.effective_chat.id, text="Hi!")
+# Initialize the bot
+bot = telebot.TeleBot(TOKEN)
 
-# Set up the Telegram bot
-updater = Updater(token=bot_token, use_context=True)
-dispatcher = updater.dispatcher
-
-# Register the /start command handler
-dispatcher.add_handler(CommandHandler("start", start))
+# Handle the /start command
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message, "Hi!")
 
 # Start the bot
-updater.start_polling()
+bot.polling()
