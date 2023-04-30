@@ -18,7 +18,7 @@ def help_command_handler(message):
     bot.send_message(chat_id, bot_reply)
 
 # Handle any message that's not a recognized command
-@bot.message_handler(func=lambda message: True, content_types=['text'])
+@bot.message_handler(func=lambda message: True, content_types=['text', 'number', 'document', 'photo'])
 def message_handler(message):
     message_text = message.text
     chat_id = message.chat.id
