@@ -12,7 +12,7 @@ TOKEN = os.getenv("BOT_API_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
 # create a new Spotipy instance
-scope = "user-read-private playlist-read-private"
+scope = "user-read-private user-read-recently-played playlist-read-private"
 
 sp_oauth = SpotifyOAuth(client_id=os.getenv("SPOTIFY_CLIENT_ID"),
                     client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
@@ -83,8 +83,8 @@ def send_auth_url(message):
     bot.send_message(chat_id, f"Please {link} to access your Spotify account, then type this command again.", parse_mode="HTML")
     
 
-@bot.message_handler(commands=['showplaylists'])
-def showplaylists_command_handler(message):
+@bot.message_handler(commands=['showmyplaylists'])
+def showmyplaylists_command_handler(message):
     chat_id = message.chat.id
 
     create_table()
@@ -103,8 +103,8 @@ def showplaylists_command_handler(message):
         bot.send_message(chat_id, f"Here's a list of your playlists: {user_playlists_names}.")
     
 
-@bot.message_handler(commands=['showplaylists'])
-def showplaylists_command_handler(message):
+@bot.message_handler(commands=['lastplayed'])
+def lastplayed_command_handler(message):
     chat_id = message.chat.id
 
     create_table()
@@ -116,8 +116,24 @@ def showplaylists_command_handler(message):
 
     else:
         sp = spotipy.Spotify(auth = get_access_token(message))
-        user_previous_track = sp.previous_track()
-        print(user_previous_track)
+        user_previous_track = sp.current_user_recently_played(limit=1)
+
+        if len(user_previous_track['items']) > 0:
+            track_uri = user_previous_track['items'][0]['track']['uri']
+            track_id = track_uri.split(':')[-1]
+            track_link = f"https://open.spotify.com/track/{track_id}"
+            track_name = user_previous_track['items'][0]['track']['name']
+            artist_uri = user_previous_track['items'][0]['track']['artists'][0]['uri']
+            artist_id = artist_uri.split(':')[-1]
+            artist_url = f"https://open.spotify.com/artist/{artist_id}"
+            artist_name = user_previous_track['items'][0]['track']['artists'][0]['name']
+
+            reply_message = f"You last played <a href='{track_link}'>{track_name}</a> by <a href='{artist_url}'>{artist_name}</a>."
+
+            bot.send_message(chat_id, reply_message, parse_mode="HTML")
+
+        else:
+            bot.send_message(chat_id, "You haven't played any tracks recently.")
 
 
 # bot help message
