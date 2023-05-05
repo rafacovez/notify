@@ -1,21 +1,20 @@
 from flask import Flask, request
 import sqlite3
-import uuid
 import requests
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
+database = os.getenv("SPOTIFY_ACCOUNTS_DB")
+
 app = Flask(__name__)
 
 @app.route('/callback')
 def callback():
 
-    conn = sqlite3.connect('acounts.db')
+    conn = sqlite3.connect(database)
     cursor = conn.cursor()
-    cursor.execute('CREATE TABLE IF NOT EXISTS tokens (id INTEGER PRIMARY KEY, unique_id TEXT, refresh_token TEXT, token TEXT)')
-    conn.commit()
 
     # handle if error or authorization denied
     error = request.args.get('error')
@@ -26,8 +25,6 @@ def callback():
     
     code = request.args.get('code')
     if code:
-        # generate unique id
-        unique_id = uuid.uuid1()
 
         # exchange authorization code for an access token
         token_endpoint = 'https://accounts.spotify.com/api/token'
@@ -44,17 +41,24 @@ def callback():
         response = requests.post(token_endpoint, data=params)
         response_data = response.json()
 
-        access_token = response_data.get('access_token')
+        # get user_id
+        user_id = request.args.get('state')
+
         refresh_token = response_data.get('refresh_token')
+        access_token = response_data.get('access_token')
 
         # store the access token in the database
-        cursor.execute('INSERT INTO tokens (unique_id, refresh_token, token) VALUES (?, ?, ?)', (str(unique_id), refresh_token, access_token))
-        conn.commit()
+        try:
+            cursor.execute('UPDATE users SET refresh_token = ?, access_token = ? WHERE user_id = ?', (refresh_token, access_token, user_id))
+            conn.commit()
+        except sqlite3.Error as e:
+            print('Error storing access token:', e)
+            conn.rollback()
         
         cursor.close()
         conn.close()
 
-        return f'Unique ID: {unique_id}. Refresh token: {refresh_token}. Access token: {access_token}'
+        return 'The authorization process was successful, you can close this page and return to Telegram now.'
     
     # handle other errors
     cursor.close()
