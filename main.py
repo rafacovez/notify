@@ -110,16 +110,6 @@ def refresh_access_token(message):
     new_token_info = auth_manager.refresh_access_token(refresh_token)
     access_token = new_token_info['access_token']
     
-    conn = sqlite3.connect(database)
-    cursor = conn.cursor()
-
-    # update access_token value in database
-    cursor.execute('UPDATE users SET access_token = ? WHERE user_id = ?', (access_token, user_id))
-    conn.commit()
-        
-    cursor.close()
-    conn.close()
-    
     return access_token
     
 
@@ -140,8 +130,11 @@ def showmyplaylists_command_handler(message):
         sp = spotipy.Spotify(auth = access_token)
 
         # command code
-        user_playlists = sp.current_user_playlists()
-        user_playlists_names_arr = [playlist['name'] for playlist in user_playlists['items']]
+        user_spotify_id = sp.current_user()['id']
+
+        user_playlists = sp.current_user_playlists(limit=50, offset=0)
+        user_playlists = [playlist for playlist in user_playlists['items'] if playlist['owner']['id'] == user_spotify_id]
+        user_playlists_names_arr = [playlist['name'] for playlist in user_playlists]
         user_playlists_names = ", ".join(user_playlists_names_arr)
         bot.send_message(chat_id, f"Here's a list of your playlists: {user_playlists_names}.")
     
