@@ -19,6 +19,9 @@ sp_oauth = SpotifyOAuth(client_id=os.getenv("SPOTIFY_CLIENT_ID"),
                     redirect_uri=os.getenv("REDIRECT_URI"),
                     scope=scope)
 
+def get_spotify_oauth():
+    return sp_oauth
+
 sp = spotipy.Spotify(oauth_manager=sp_oauth)
 
 database = os.getenv("SPOTIFY_ACCOUNTS_DB")
@@ -71,6 +74,22 @@ def get_access_token(message):
     return access_token
 
 
+def get_refresh_token(message):
+    user_id = message.from_user.id
+    
+    conn = sqlite3.connect(database)
+    cursor = conn.cursor()
+
+    # checks if there's an available refresh_token
+    cursor.execute('SELECT refresh_token FROM users WHERE user_id = ?', (user_id,))
+    refresh_token = cursor.fetchone()[0]
+    
+    cursor.close()
+    conn.close()
+
+    return refresh_token
+
+
 def send_auth_url(message):
     user_id = message.from_user.id
     chat_id = message.chat.id
@@ -81,6 +100,27 @@ def send_auth_url(message):
 
     # send auth url to the user
     bot.send_message(chat_id, f"Please {link} to access your Spotify account, then type this command again.", parse_mode="HTML")
+
+
+def refresh_access_token(message):
+    user_id = message.from_user.id
+
+    auth_manager = get_spotify_oauth()
+    refresh_token = get_refresh_token(message)
+    new_token_info = auth_manager.refresh_access_token(refresh_token)
+    access_token = new_token_info['access_token']
+    
+    conn = sqlite3.connect(database)
+    cursor = conn.cursor()
+
+    # update access_token value in database
+    cursor.execute('UPDATE users SET access_token = ? WHERE user_id = ?', (access_token, user_id))
+    conn.commit()
+        
+    cursor.close()
+    conn.close()
+    
+    return access_token
     
 
 @bot.message_handler(commands=['showmyplaylists'])
@@ -95,11 +135,14 @@ def showmyplaylists_command_handler(message):
         send_auth_url(message)
 
     else:
-        sp = spotipy.Spotify(auth = get_access_token(message))
+        # get access to users spotify data
+        access_token = refresh_access_token(message)
+        sp = spotipy.Spotify(auth = access_token)
+
+        # command code
         user_playlists = sp.current_user_playlists()
         user_playlists_names_arr = [playlist['name'] for playlist in user_playlists['items']]
         user_playlists_names = ", ".join(user_playlists_names_arr)
-            
         bot.send_message(chat_id, f"Here's a list of your playlists: {user_playlists_names}.")
     
 
@@ -115,7 +158,11 @@ def lastplayed_command_handler(message):
         send_auth_url(message)
 
     else:
-        sp = spotipy.Spotify(auth = get_access_token(message))
+        # get access to users spotify data
+        access_token = refresh_access_token(message)
+        sp = spotipy.Spotify(auth = access_token)
+
+        # command code
         user_previous_track = sp.current_user_recently_played(limit=1)
 
         if len(user_previous_track['items']) > 0:
