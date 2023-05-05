@@ -12,7 +12,7 @@ TOKEN = os.getenv("BOT_API_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
 # create a new Spotipy instance
-scope = "user-read-private user-read-recently-played playlist-read-private"
+scope = "user-read-private user-read-recently-played user-top-read playlist-read-private"
 
 sp_oauth = SpotifyOAuth(client_id=os.getenv("SPOTIFY_CLIENT_ID"),
                     client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
@@ -137,6 +137,31 @@ def showmyplaylists_command_handler(message):
         user_playlists_names_arr = [playlist['name'] for playlist in user_playlists]
         user_playlists_names = ", ".join(user_playlists_names_arr)
         bot.send_message(chat_id, f"Here's a list of your playlists: {user_playlists_names}.")
+
+
+@bot.message_handler(commands=['mytopten'])
+def mytopten_command_handler(message):
+    chat_id = message.chat.id
+
+    create_table()
+    store_user_ids(message)
+
+    # ask for auth if it hasn't been done yet
+    if get_access_token(message) is None:
+        send_auth_url(message)
+
+    else:
+        # get access to users spotify data
+        access_token = refresh_access_token(message)
+        sp = spotipy.Spotify(auth = access_token)
+
+        # command code
+        user_top_ten = sp.current_user_top_tracks(limit=10, offset=0, time_range='short_term')['items']
+        user_top_ten_arr = [(track['name'], track['external_urls']['spotify'], track['artists'][0]['name']) for track in user_top_ten]
+        user_top_ten_names = ""
+        for i, track in enumerate(user_top_ten_arr):
+            user_top_ten_names += f"{i+1}- <a href='{track[1]}'>{track[0]}</a> by {track[2]}\n"
+        bot.send_message(chat_id, f"You've got these 10 on repeat lately:\n\n{user_top_ten_names}", parse_mode='HTML')
     
 
 @bot.message_handler(commands=['lastplayed'])
