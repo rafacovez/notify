@@ -113,8 +113,8 @@ def refresh_access_token(message):
     return access_token
     
 
-@bot.message_handler(commands=['showmyplaylists'])
-def showmyplaylists_command_handler(message):
+@bot.message_handler(commands=['myplaylists'])
+def myplaylists_command_handler(message):
     chat_id = message.chat.id
 
     create_table()
@@ -156,13 +156,48 @@ def mytopten_command_handler(message):
         sp = spotipy.Spotify(auth = access_token)
 
         # command code
-        user_top_ten = sp.current_user_top_tracks(limit=10, offset=0, time_range='short_term')['items']
+        user_top_ten = sp.current_user_top_tracks(limit=10, offset=0, time_range='medium_term')['items']
         user_top_ten_arr = [(track['name'], track['external_urls']['spotify'], track['artists'][0]['name']) for track in user_top_ten]
         user_top_ten_names = ""
         for i, track in enumerate(user_top_ten_arr):
             user_top_ten_names += f"{i+1}- <a href='{track[1]}'>{track[0]}</a> by {track[2]}\n"
         bot.send_message(chat_id, f"You've got these 10 on repeat lately:\n\n{user_top_ten_names}", parse_mode='HTML')
-    
+
+
+@bot.message_handler(commands=['recommended'])
+def recommended_command_handler(message):
+    chat_id = message.chat.id
+
+    create_table()
+    store_user_ids(message)
+
+    # ask for auth if it hasn't been done yet
+    if get_access_token(message) is None:
+        send_auth_url(message)
+
+    else:
+        # get access to users spotify data
+        access_token = refresh_access_token(message)
+        sp = spotipy.Spotify(auth = access_token)
+
+        # command code
+        user_top_ten = sp.current_user_top_tracks(limit=5, offset=0, time_range='short_term')['items']
+        user_top_ten_uris = [track['uri'] for track in user_top_ten]
+        
+        recommendations = sp.recommendations(limit=10, seed_tracks=user_top_ten_uris)
+
+        tracks_list = []
+
+        for track in recommendations['tracks']:
+            track_name = track['name']
+            artist_name = track['artists'][0]['name']
+            track_url = track['external_urls']['spotify']
+            recommended_track = f"- <a href='{track_url}'>{track_name}</a> by {artist_name}"
+            tracks_list.append(recommended_track)
+
+        message_text = "\n".join(tracks_list)
+        bot.send_message(chat_id, f"You might like these tracks I found for you:\n\n{message_text}", parse_mode="HTML")
+
 
 @bot.message_handler(commands=['lastplayed'])
 def lastplayed_command_handler(message):
@@ -202,13 +237,17 @@ def lastplayed_command_handler(message):
 
 
 # bot help message
-bot_help_reply = "I can help you get notified when your friends add or remove a song from the playlists you share together.\n\nYou can make me do this for you by using these commands:\n\n/logintospotify - Set up your Spotify account\n\n/addplaylist - Add a playlist\n\n/removeplaylist - Remove a playlist"
+bot_help_reply = "I can help you get notified when your friends add or remove a song from the playlists you share together, show you which are your top 10 songs right now or even recommend you some new tracks.\n\nYou can make me do this for you by using these commands:\n\n/showmyplaylists - Get a list of the playlists you own\n/mytopten - Get a list of the top 10 songs you listen to the most lately\n/recommended - Get a list of 5 tracks you might like based on what you're listening to these days\n/lastplayed - Get the last track you played"
 
-# define the help command handler
 @bot.message_handler(commands=['help'])
 def help_command_handler(message):
     chat_id = message.chat.id
     bot.send_message(chat_id, bot_help_reply)
+    
+
+@bot.message_handler(commands=['start'])
+def start_command_handler(message):
+    help_command_handler(message)
 
 
 # fallback for any message
