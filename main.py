@@ -103,8 +103,6 @@ def send_auth_url(message):
 
 
 def refresh_access_token(message):
-    user_id = message.from_user.id
-
     auth_manager = get_spotify_oauth()
     refresh_token = get_refresh_token(message)
     new_token_info = auth_manager.refresh_access_token(refresh_token)
@@ -137,6 +135,28 @@ def myplaylists_command_handler(message):
         user_playlists_names_arr = [playlist['name'] for playlist in user_playlists]
         user_playlists_names = ", ".join(user_playlists_names_arr)
         bot.send_message(chat_id, f"Here's a list of your playlists: {user_playlists_names}.")
+    
+
+@bot.message_handler(commands=['track'])
+def track_command_handler(message):
+    chat_id = message.chat.id
+
+    create_table()
+    store_user_ids(message)
+
+    # ask for auth if it hasn't been done yet
+    if get_access_token(message) is None:
+        send_auth_url(message)
+
+    else:
+        # get access to users spotify data
+        access_token = refresh_access_token(message)
+        sp = spotipy.Spotify(auth = access_token)
+
+        # command code
+        user_display_name = sp.current_user()['display_name']
+        bot.send_message(chat_id, f"Sorry, {user_display_name}, but I'm still working on this one.")
+        
 
 
 @bot.message_handler(commands=['mytopten'])
