@@ -92,7 +92,7 @@ def mytopten_command_handler(message):
 
         # command code
         user_top_ten = sp.current_user_top_tracks(limit=10, offset=0, time_range='medium_term')['items']
-        if len(user_top_ten) > 10:
+        if len(user_top_ten) >= 10:
             user_top_ten_arr = [(track['name'], track['external_urls']['spotify'], track['artists'][0]['name']) for track in user_top_ten]
             user_top_ten_names = ""
             for i, track in enumerate(user_top_ten_arr):
@@ -121,7 +121,7 @@ def recommended_command_handler(message):
         # command code
         user_top_ten = sp.current_user_top_tracks(limit=5, offset=0, time_range='short_term')['items']
 
-        if len(user_top_ten) > 5:
+        if len(user_top_ten) >= 5:
             user_top_ten_uris = [track['uri'] for track in user_top_ten]
             
             recommendations = sp.recommendations(limit=10, seed_tracks=user_top_ten_uris)
