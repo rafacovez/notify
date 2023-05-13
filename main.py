@@ -197,4 +197,9 @@ def message_handler(message):
 
 
 # Start the bot
-bot.infinity_polling()
+try:
+    # Code that may raise a telebot.apihelper.ApiTelegramException
+    bot.infinity_polling()
+    print("Notify Telegram bot is up and running!")
+except telebot.apihelper.ApiTelegramException as e:
+    print(f"Error: {e}")
