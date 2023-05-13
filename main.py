@@ -175,7 +175,7 @@ def lastplayed_command_handler(message):
 
 
 # bot help message
-bot_help_reply = "I can help you get notified when your friends add or remove a song from the playlists you share together, show you which are your top 10 songs right now or even recommend you some new tracks.\n\nYou can make me do this for you by using these commands:\n\n/track - Start tracking a collaborative playlist to get notified when someone else adds or removes a song from it\n/showmyplaylists - Get a list of the playlists you own\n/mytopten - Get a list of the top 10 songs you listen to the most lately\n/recommended - Get a list of 5 tracks you might like based on what you're listening to these days\n/lastplayed - Get the last track you played"
+bot_help_reply = "I can help you get notified when your friends add or remove a song from the playlists you share together, show you which are your top 10 songs right now or even recommend you some new tracks.\n\nYou can make me do this for you by using these commands:\n\n/track - Start tracking a collaborative playlist to get notified when someone else adds or removes a song from it\n/myplaylists - Get a list of the playlists you own\n/mytopten - Get a list of the top 10 songs you listen to the most lately\n/recommended - Get a list of 5 tracks you might like based on what you're listening to these days\n/lastplayed - Get the last track you played"
 
 @bot.message_handler(commands=['help'])
 def help_command_handler(message):
