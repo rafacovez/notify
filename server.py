@@ -12,7 +12,7 @@ app = Flask(__name__)
 
 @app.route('/callback')
 def callback():
-
+    
     conn = sqlite3.connect(database)
     cursor = conn.cursor()
 
@@ -66,4 +66,4 @@ def callback():
     return 'Unexpected error'
 
 if __name__ == '__main__':
-    app.run(port=8000)
+    app.run(host="192.168.100.26", port=8888)
