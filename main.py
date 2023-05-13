@@ -1,6 +1,7 @@
 import telebot
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+import requests
 from dotenv import load_dotenv
 import os
 from my_functions import create_table, store_user_ids, get_access_token, send_auth_url, refresh_access_token
@@ -148,7 +149,12 @@ def lastplayed_command_handler(message):
         sp = spotipy.Spotify(auth = access_token)
 
         # command code
-        user_previous_track = sp.current_user_recently_played(limit=1)
+        try:
+            user_previous_track = sp.current_user_recently_played(limit=1)
+        
+        except requests.exceptions.ReadTimeout as e:
+            print(f"Error: {e}")
+            bot.reply_to(message, "Sorry, I couldn't retrieve your last played track. Please try again later.")
 
         if len(user_previous_track['items']) > 0:
             track_uri = user_previous_track['items'][0]['track']['uri']
@@ -197,9 +203,4 @@ def message_handler(message):
 
 
 # Start the bot
-try:
-    # Code that may raise a telebot.apihelper.ApiTelegramException
-    bot.infinity_polling()
-    print("Notify Telegram bot is up and running!")
-except telebot.apihelper.ApiTelegramException as e:
-    print(f"Error: {e}")
+bot.infinity_polling()
