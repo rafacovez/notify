@@ -69,5 +69,8 @@ def callback():
     return "Unexpected error"
 
 
+redirect_host = os.getenv("REDIRECT_HOST")
+redirect_port = os.getenv("REDIRECT_PORT")
+
 if __name__ == "__main__":
-    app.run(host="192.168.100.26", port=8888)
+    app.run(port=redirect_port)
