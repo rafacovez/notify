@@ -22,9 +22,7 @@ bot = telebot.TeleBot(TOKEN)
 database = os.getenv("SPOTIFY_ACCOUNTS_DB")
 
 # create a new Spotipy instance
-scope = (
-    "user-read-private user-read-recently-played user-top-read playlist-read-private"
-)
+scope = "user-read-private user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative"
 
 sp_oauth = SpotifyOAuth(
     client_id=os.getenv("SPOTIFY_CLIENT_ID"),
@@ -36,8 +34,8 @@ sp_oauth = SpotifyOAuth(
 sp = spotipy.Spotify(oauth_manager=sp_oauth)
 
 
-@bot.message_handler(commands=["track"])
-def track_command_handler(message):
+@bot.message_handler(commands=["lastplayed"])
+def lastplayed_command_handler(message):
     chat_id = message.chat.id
 
     create_table()
@@ -53,10 +51,24 @@ def track_command_handler(message):
         sp = spotipy.Spotify(auth=access_token)
 
         # command code
-        user_display_name = sp.current_user()["display_name"]
-        bot.send_message(
-            chat_id, f"Sorry, {user_display_name}, but I'm still working on this one."
-        )
+        user_previous_track = sp.current_user_recently_played(limit=1)
+
+        if len(user_previous_track["items"]) > 0:
+            track_uri = user_previous_track["items"][0]["track"]["uri"]
+            track_id = track_uri.split(":")[-1]
+            track_link = f"https://open.spotify.com/track/{track_id}"
+            track_name = user_previous_track["items"][0]["track"]["name"]
+            artist_uri = user_previous_track["items"][0]["track"]["artists"][0]["uri"]
+            artist_id = artist_uri.split(":")[-1]
+            artist_url = f"https://open.spotify.com/artist/{artist_id}"
+            artist_name = user_previous_track["items"][0]["track"]["artists"][0]["name"]
+
+            reply_message = f"You last played <a href='{track_link}'>{track_name}</a> by <a href='{artist_url}'>{artist_name}</a>."
+
+            bot.send_message(chat_id, reply_message, parse_mode="HTML")
+
+        else:
+            bot.send_message(chat_id, "You haven't played any tracks recently.")
 
 
 @bot.message_handler(commands=["myplaylists"])
@@ -191,45 +203,8 @@ def recommended_command_handler(message):
             bot.send_message(chat_id, "Go play some tracks first!")
 
 
-@bot.message_handler(commands=["lastplayed"])
-def lastplayed_command_handler(message):
-    chat_id = message.chat.id
-
-    create_table()
-    store_user_ids(message)
-
-    # ask for auth if it hasn't been done yet
-    if get_access_token(message) is None:
-        send_auth_url(message)
-
-    else:
-        # get access to users spotify data
-        access_token = refresh_access_token(message)
-        sp = spotipy.Spotify(auth=access_token)
-
-        # command code
-        user_previous_track = sp.current_user_recently_played(limit=1)
-
-        if len(user_previous_track["items"]) > 0:
-            track_uri = user_previous_track["items"][0]["track"]["uri"]
-            track_id = track_uri.split(":")[-1]
-            track_link = f"https://open.spotify.com/track/{track_id}"
-            track_name = user_previous_track["items"][0]["track"]["name"]
-            artist_uri = user_previous_track["items"][0]["track"]["artists"][0]["uri"]
-            artist_id = artist_uri.split(":")[-1]
-            artist_url = f"https://open.spotify.com/artist/{artist_id}"
-            artist_name = user_previous_track["items"][0]["track"]["artists"][0]["name"]
-
-            reply_message = f"You last played <a href='{track_link}'>{track_name}</a> by <a href='{artist_url}'>{artist_name}</a>."
-
-            bot.send_message(chat_id, reply_message, parse_mode="HTML")
-
-        else:
-            bot.send_message(chat_id, "You haven't played any tracks recently.")
-
-
 # bot help message
-bot_help_reply = "I can help you get notified when your friends add or remove a song from the playlists you share together, show you which are your top 10 songs right now or even recommend you some new tracks.\n\nYou can make me do this for you by using these commands:\n\n/track - Start tracking a collaborative playlist to get notified when someone else adds or removes a song from it\n/myplaylists - Get a list of the playlists you own\n/mytopten - Get a list of the top 10 songs you listen to the most lately\n/recommended - Get a list of 5 tracks you might like based on what you're listening to these days\n/lastplayed - Get the last track you played"
+bot_help_reply = "I can show you which are your top 10 songs right now or even recommend you some new tracks.\n\nYou can make me do this for you by using these commands:\n\n/lastplayed - Get the last track you played\n/myplaylists - Get a list of the playlists you own\n/mytopten - Get a list of the top 10 songs you listen to the most lately\n/recommended - Get a list of 5 tracks you might like based on what you're listening to these days"
 
 
 @bot.message_handler(commands=["help"])

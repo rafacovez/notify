@@ -73,4 +73,4 @@ redirect_host = os.getenv("REDIRECT_HOST")
 redirect_port = os.getenv("REDIRECT_PORT")
 
 if __name__ == "__main__":
-    app.run(port=redirect_port)
+    app.run(host=redirect_host, port=redirect_port)
