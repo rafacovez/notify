@@ -48,9 +48,9 @@ def worker():
                 chat_id = notify_dict["chat_id"]
                 info = sp_oauth.refresh_access_token(refresh_token)
                 access_token = info["access_token"]
-                sp_user = spotipy.Spotify(auth=access_token)
+                user_sp = spotipy.Spotify(auth=access_token)
                 for playlist_obj in playlist_list:
-                    playlist = sp_user.playlist(playlist_obj["playlist_id"])
+                    playlist = user_sp.playlist(playlist_obj["playlist_id"])
                     if playlist["snapshot_id"] != playlist_obj["snapshot_id"]:
                         playlist_obj["snapshot_id"] = playlist["snapshot_id"]
                         playlist_url = f"https://open.spotify.com/playlist/{playlist['id']}"
@@ -94,9 +94,24 @@ def notify_command(message):
         access_token = refresh_access_token(message)
         user_sp = spotipy.Spotify(auth=access_token)
 
+        user_playlists_arr = []
         user_playlists = user_sp.current_user_playlists(limit=50, offset=0)
 
-        for playlist in user_playlists["items"]:
+        if len(user_playlists["items"]) > 0:
+            user_playlists_arr = [playlist for playlist in user_playlists["items"]]
+            if len(user_playlists["items"]) >= 50:
+                offset = 50
+                while True:
+                    user_playlists = user_sp.current_user_playlists(limit=50, offset=offset)
+                    if len(user_playlists["items"]) > 0:
+                        user_playlists_arr += [playlist for playlist in user_playlists["items"]]
+                        if len(user_playlists["items"]) < 50:
+                            break
+                        offset += 50
+                    else:
+                        break
+
+        for playlist in user_playlists_arr:
             if playlist["name"] == playlist_name:
                 refresh_token = get_refresh_token(message)
                 if refresh_token not in notification_dict.keys():
@@ -202,10 +217,10 @@ def lastplayed_command_handler(message):
     else:
         # get access to users spotify data
         access_token = refresh_access_token(message)
-        sp = spotipy.Spotify(auth=access_token)
+        user_sp = spotipy.Spotify(auth=access_token)
 
         # command code
-        user_previous_track = sp.current_user_recently_played(limit=1)
+        user_previous_track = user_sp.current_user_recently_played(limit=1)
 
         if len(user_previous_track["items"]) > 0:
             track_uri = user_previous_track["items"][0]["track"]["uri"]
@@ -239,19 +254,24 @@ def myplaylists_command_handler(message):
     else:
         # get access to users spotify data
         access_token = refresh_access_token(message)
-        sp = spotipy.Spotify(auth=access_token)
+        user_sp = spotipy.Spotify(auth=access_token)
 
-        # command code
-        user_spotify_id = sp.current_user()["id"]
+        user_playlists_arr = []
+        user_playlists = user_sp.current_user_playlists(limit=50, offset=0)
 
-        user_playlists = sp.current_user_playlists(limit=50, offset=0)
-
-        if len(user_playlists) > 0:
-            user_playlists_arr = [
-                playlist
-                for playlist in user_playlists["items"]
-                if playlist["owner"]["id"] == user_spotify_id
-            ]
+        if len(user_playlists["items"]) > 0:
+            user_playlists_arr = [playlist for playlist in user_playlists["items"]]
+            if len(user_playlists["items"]) >= 50:
+                offset = 50
+                while True:
+                    user_playlists = user_sp.current_user_playlists(limit=50, offset=offset)
+                    if len(user_playlists["items"]) > 0:
+                        user_playlists_arr += [playlist for playlist in user_playlists["items"]]
+                        if len(user_playlists["items"]) < 50:
+                            break
+                        offset += 50
+                    else:
+                        break
 
             user_playlists_names_arr = []
             for playlist in user_playlists_arr:
@@ -283,12 +303,12 @@ def mytopten_command_handler(message):
     else:
         # get access to users spotify data
         access_token = refresh_access_token(message)
-        sp = spotipy.Spotify(auth=access_token)
+        user_sp = spotipy.Spotify(auth=access_token)
 
         # command code
-        user_top_ten = sp.current_user_top_tracks(limit=10, offset=0, time_range="medium_term")[
-            "items"
-        ]
+        user_top_ten = user_sp.current_user_top_tracks(
+            limit=10, offset=0, time_range="medium_term"
+        )["items"]
         if len(user_top_ten) >= 10:
             user_top_ten_arr = [
                 (
@@ -326,17 +346,17 @@ def recommended_command_handler(message):
     else:
         # get access to users spotify data
         access_token = refresh_access_token(message)
-        sp = spotipy.Spotify(auth=access_token)
+        user_sp = spotipy.Spotify(auth=access_token)
 
         # command code
-        user_top_ten = sp.current_user_top_tracks(limit=5, offset=0, time_range="short_term")[
-            "items"
-        ]
+        user_top_ten = user_sp.current_user_top_tracks(
+            limit=5, offset=0, time_range="short_term"
+        )["items"]
 
         if len(user_top_ten) >= 5:
             user_top_ten_uris = [track["uri"] for track in user_top_ten]
 
-            recommendations = sp.recommendations(limit=10, seed_tracks=user_top_ten_uris)
+            recommendations = user_sp.recommendations(limit=10, seed_tracks=user_top_ten_uris)
 
             tracks_list = []
 
