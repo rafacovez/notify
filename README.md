@@ -12,7 +12,9 @@ Just write `playlistNotificationBot` in your Telegram's app search bar and Notif
 
 Notify allows you to interact with your Spotify account information from Telegram, with features like playlists activity notifications, song suggestions and even know what your top ten looks like as of right now. The following commands are available:
 
-- `/track`: Start tracking a collaborative playlist to get notified when someone else adds or removes a song from it.
+- `/notify`: Start tracking a playlist to get notified when someone else adds or removes a song from it.
+- `/removenotify`: Stop tracking a playlist.
+- `/shownotifylist`: Get a list of the tracked playlists.
 - `/myplaylists`: Get a list of the playlists you own.
 - `/mytopten`: Get a list of the top 10 songs you listen to the most lately.
 - `/recommended`: Get a list of 5 tracks you might like based on what you're listening to these days.
