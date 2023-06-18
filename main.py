@@ -1,19 +1,19 @@
 import os
+import threading
+from time import sleep
 
 import spotipy
 import telebot
-import threading
-from time import sleep
 from dotenv import load_dotenv
 from spotipy.oauth2 import SpotifyOAuth
 
 from my_functions import (
     create_table,
     get_access_token,
+    get_refresh_token,
     refresh_access_token,
     send_auth_url,
     store_user_ids,
-    get_refresh_token,
 )
 
 load_dotenv()
@@ -53,7 +53,9 @@ def worker():
                     playlist = user_sp.playlist(playlist_obj["playlist_id"])
                     if playlist["snapshot_id"] != playlist_obj["snapshot_id"]:
                         playlist_obj["snapshot_id"] = playlist["snapshot_id"]
-                        playlist_url = f"https://open.spotify.com/playlist/{playlist['id']}"
+                        playlist_url = (
+                            f"https://open.spotify.com/playlist/{playlist['id']}"
+                        )
                         bot.send_message(
                             chat_id,
                             f"Playlist '<a href='{playlist_url}'>{playlist['name']}</a>' has changed!",
@@ -102,9 +104,13 @@ def notify_command(message):
             if len(user_playlists["items"]) >= 50:
                 offset = 50
                 while True:
-                    user_playlists = user_sp.current_user_playlists(limit=50, offset=offset)
+                    user_playlists = user_sp.current_user_playlists(
+                        limit=50, offset=offset
+                    )
                     if len(user_playlists["items"]) > 0:
-                        user_playlists_arr += [playlist for playlist in user_playlists["items"]]
+                        user_playlists_arr += [
+                            playlist for playlist in user_playlists["items"]
+                        ]
                         if len(user_playlists["items"]) < 50:
                             break
                         offset += 50
@@ -115,9 +121,14 @@ def notify_command(message):
             if playlist["name"] == playlist_name:
                 refresh_token = get_refresh_token(message)
                 if refresh_token not in notification_dict.keys():
-                    notification_dict[refresh_token] = {"playlist_list": [], "chat_id": chat_id}
+                    notification_dict[refresh_token] = {
+                        "playlist_list": [],
+                        "chat_id": chat_id,
+                    }
                 else:
-                    for playlist_dict in notification_dict[refresh_token]["playlist_list"]:
+                    for playlist_dict in notification_dict[refresh_token][
+                        "playlist_list"
+                    ]:
                         if playlist_dict["playlist_name"] == playlist["name"]:
                             bot.send_message(
                                 chat_id,
@@ -147,10 +158,14 @@ def get_notify_list(message):
         if chat_id == notify_dict["chat_id"]:
             notify_playlist_names = []
             if len(notify_dict["playlist_list"]) == 0:
-                bot.send_message(chat_id, f"You dont have any playlist in your Notify list")
+                bot.send_message(
+                    chat_id, f"You dont have any playlist in your Notify list"
+                )
                 return
             for playlist in notify_dict["playlist_list"]:
-                playlist_url = f"https://open.spotify.com/playlist/{playlist['playlist_id']}"
+                playlist_url = (
+                    f"https://open.spotify.com/playlist/{playlist['playlist_id']}"
+                )
                 notify_playlist_names.append(
                     f"<a href='{playlist_url}'>{playlist['playlist_name']}</a>"
                 )
@@ -188,13 +203,19 @@ def remove_notify(message):
         for refresh_token, notify_dict in notification_dict.items():
             if chat_id == notify_dict["chat_id"]:
                 if len(notify_dict["playlist_list"]) == 0:
-                    bot.send_message(chat_id, f"You dont have any playlist in your Notify list")
+                    bot.send_message(
+                        chat_id, f"You dont have any playlist in your Notify list"
+                    )
                     return
                 for i in range(len(notify_dict["playlist_list"])):
-                    if notify_dict["playlist_list"][i]["playlist_name"] == playlist_name:
+                    if (
+                        notify_dict["playlist_list"][i]["playlist_name"]
+                        == playlist_name
+                    ):
                         del notify_dict["playlist_list"][i]
                         bot.send_message(
-                            chat_id, f"Removed playlist '{playlist_name}' from your Notify list!"
+                            chat_id,
+                            f"Removed playlist '{playlist_name}' from your Notify list!",
                         )
                         return
                 bot.send_message(chat_id, f"Playlist '{playlist_name}' was not found!")
@@ -264,9 +285,13 @@ def myplaylists_command_handler(message):
             if len(user_playlists["items"]) >= 50:
                 offset = 50
                 while True:
-                    user_playlists = user_sp.current_user_playlists(limit=50, offset=offset)
+                    user_playlists = user_sp.current_user_playlists(
+                        limit=50, offset=offset
+                    )
                     if len(user_playlists["items"]) > 0:
-                        user_playlists_arr += [playlist for playlist in user_playlists["items"]]
+                        user_playlists_arr += [
+                            playlist for playlist in user_playlists["items"]
+                        ]
                         if len(user_playlists["items"]) < 50:
                             break
                         offset += 50
@@ -329,7 +354,9 @@ def mytopten_command_handler(message):
                 parse_mode="HTML",
             )
         else:
-            bot.send_message(chat_id, "You haven't been listening to anything, really...")
+            bot.send_message(
+                chat_id, "You haven't been listening to anything, really..."
+            )
 
 
 @bot.message_handler(commands=["recommended"])
@@ -356,7 +383,9 @@ def recommended_command_handler(message):
         if len(user_top_ten) >= 5:
             user_top_ten_uris = [track["uri"] for track in user_top_ten]
 
-            recommendations = user_sp.recommendations(limit=10, seed_tracks=user_top_ten_uris)
+            recommendations = user_sp.recommendations(
+                limit=10, seed_tracks=user_top_ten_uris
+            )
 
             tracks_list = []
 
@@ -364,7 +393,9 @@ def recommended_command_handler(message):
                 track_name = track["name"]
                 artist_name = track["artists"][0]["name"]
                 track_url = track["external_urls"]["spotify"]
-                recommended_track = f"- <a href='{track_url}'>{track_name}</a> by {artist_name}"
+                recommended_track = (
+                    f"- <a href='{track_url}'>{track_name}</a> by {artist_name}"
+                )
                 tracks_list.append(recommended_track)
 
             message_text = "\n".join(tracks_list)
