@@ -2,10 +2,10 @@ import os
 import threading
 from time import sleep
 
-import spotipy
-import telebot
+import spotipy  # spotify api interaction library
+import telebot  # telegram bots interaction library
 from dotenv import load_dotenv
-from spotipy.oauth2 import SpotifyOAuth
+from spotipy.oauth2 import SpotifyOAuth  # spotify authentication handler
 
 from my_functions import (
     create_table,
@@ -16,14 +16,12 @@ from my_functions import (
     store_user_ids,
 )
 
+# loads variables in .env file
 load_dotenv()
 
 # initialize the bot
 TOKEN = os.getenv("BOT_API_TOKEN")
 bot = telebot.TeleBot(TOKEN)
-
-notification_dict = {}
-
 
 database = os.getenv("SPOTIFY_ACCOUNTS_DB")
 
@@ -39,7 +37,11 @@ sp_oauth = SpotifyOAuth(
 
 sp = spotipy.Spotify(oauth_manager=sp_oauth)
 
+# creates a dictionary of playlists to be notified about
+notification_dict = {}
 
+
+# looks for changes in users notify lists every second
 def worker():
     while True:
         try:
@@ -68,10 +70,10 @@ def worker():
             print(f"Exception in worker thread! {e}")
 
 
-threading.Thread(target=worker, daemon=True).start()
+# threading.Thread(target=worker, daemon=True).start()
 
 
-@bot.message_handler(commands=["notify"])
+# @bot.message_handler(commands=["notify"])
 def notify_command(message):
     chat_id = message.chat.id
 
@@ -150,7 +152,7 @@ def notify_command(message):
         bot.send_message(chat_id, f"Playlist '{playlist_name}' was not found!")
 
 
-@bot.message_handler(commands=["shownotifylist"])
+# @bot.message_handler(commands=["shownotifylist"])
 def get_notify_list(message):
     chat_id = message.chat.id
 
@@ -179,7 +181,7 @@ def get_notify_list(message):
     bot.send_message(chat_id, f"You dont have any playlist in your Notify list")
 
 
-@bot.message_handler(commands=["removenotify"])
+# @bot.message_handler(commands=["removenotify"])
 def remove_notify(message):
     chat_id = message.chat.id
 
@@ -224,23 +226,47 @@ def remove_notify(message):
         bot.send_message(chat_id, f"You dont have any playlist in your Notify list")
 
 
-@bot.message_handler(commands=["lastplayed"])
-def lastplayed_command_handler(message):
-    chat_id = message.chat.id
+class BaseCommandHandler:
+    def __init__(self, bot):
+        self.bot = bot
 
-    create_table()
-    store_user_ids(message)
+    def handle_command(self, message):
+        self.common_code(message)
 
-    # ask for auth if it hasn't been done yet
-    if get_access_token(message) is None:
-        send_auth_url(message)
+        state, user_sp, chat_id, user_id = self.common_code(message)
 
-    else:
-        # get access to users spotify data
-        access_token = refresh_access_token(message)
-        user_sp = spotipy.Spotify(auth=access_token)
+        if state:
+            self.specific_code(message, user_sp, chat_id, user_id)
 
-        # command code
+    # base code every command goes through before executing specific command code
+    def common_code(self, message):
+        # Implementation of common code
+        create_table()
+        store_user_ids(message)
+
+        # ask for auth if it hasn't been done yet
+        if get_access_token(message) is None:
+            send_auth_url(message)
+
+            return False, user_sp, chat_id, user_id
+
+        else:
+            chat_id = message.chat.id
+            user_id = message.from_user.id
+
+            # get access to users spotify data
+            access_token = refresh_access_token(message)
+            user_sp = spotipy.Spotify(auth=access_token)
+
+            return True, user_sp, chat_id, user_id
+
+    def specific_code(self, message, user_sp, chat_id, user_id):
+        # Implementation of specific code (to be overridden by derived classes)
+        pass
+
+
+class LastPlayedCommandHandler(BaseCommandHandler):
+    def specific_code(self, message, user_sp, chat_id, user_id):
         user_previous_track = user_sp.current_user_recently_played(limit=1)
 
         if len(user_previous_track["items"]) > 0:
@@ -261,22 +287,8 @@ def lastplayed_command_handler(message):
             bot.send_message(chat_id, "You haven't played any tracks recently.")
 
 
-@bot.message_handler(commands=["myplaylists"])
-def myplaylists_command_handler(message):
-    chat_id = message.chat.id
-
-    create_table()
-    store_user_ids(message)
-
-    # ask for auth if it hasn't been done yet
-    if get_access_token(message) is None:
-        send_auth_url(message)
-
-    else:
-        # get access to users spotify data
-        access_token = refresh_access_token(message)
-        user_sp = spotipy.Spotify(auth=access_token)
-
+class MyPlaylistsCommandHandler(BaseCommandHandler):
+    def specific_code(self, message, user_sp, chat_id, user_id):
         user_playlists_arr = []
         user_playlists = user_sp.current_user_playlists(limit=50, offset=0)
 
@@ -314,23 +326,8 @@ def myplaylists_command_handler(message):
             bot.send_message(chat_id, "You don't have any playlists of your own yet!")
 
 
-@bot.message_handler(commands=["mytopten"])
-def mytopten_command_handler(message):
-    chat_id = message.chat.id
-
-    create_table()
-    store_user_ids(message)
-
-    # ask for auth if it hasn't been done yet
-    if get_access_token(message) is None:
-        send_auth_url(message)
-
-    else:
-        # get access to users spotify data
-        access_token = refresh_access_token(message)
-        user_sp = spotipy.Spotify(auth=access_token)
-
-        # command code
+class MyTopTenCommandHandler(BaseCommandHandler):
+    def specific_code(self, message, user_sp, chat_id, user_id):
         user_top_ten = user_sp.current_user_top_tracks(
             limit=10, offset=0, time_range="medium_term"
         )["items"]
@@ -359,23 +356,8 @@ def mytopten_command_handler(message):
             )
 
 
-@bot.message_handler(commands=["recommended"])
-def recommended_command_handler(message):
-    chat_id = message.chat.id
-
-    create_table()
-    store_user_ids(message)
-
-    # ask for auth if it hasn't been done yet
-    if get_access_token(message) is None:
-        send_auth_url(message)
-
-    else:
-        # get access to users spotify data
-        access_token = refresh_access_token(message)
-        user_sp = spotipy.Spotify(auth=access_token)
-
-        # command code
+class RecommendedCommandHandler(BaseCommandHandler):
+    def specific_code(self, message, user_sp, chat_id, user_id):
         user_top_ten = user_sp.current_user_top_tracks(
             limit=5, offset=0, time_range="short_term"
         )["items"]
@@ -408,8 +390,34 @@ def recommended_command_handler(message):
             bot.send_message(chat_id, "Go play some tracks first!")
 
 
+lastplayed_handler = LastPlayedCommandHandler(bot)
+myplaylists_handler = MyPlaylistsCommandHandler(bot)
+mytopten_handler = MyTopTenCommandHandler(bot)
+recommended_handler = RecommendedCommandHandler(bot)
+
+
+@bot.message_handler(commands=["lastplayed"])
+def lastplayed_command_handler(message):
+    lastplayed_handler.handle_command(message)
+
+
+@bot.message_handler(commands=["myplaylists"])
+def myplaylists_command_handler(message):
+    myplaylists_handler.handle_command(message)
+
+
+@bot.message_handler(commands=["mytopten"])
+def mytopten_command_handler(message):
+    mytopten_handler.handle_command(message)
+
+
+@bot.message_handler(commands=["recommended"])
+def recommended_command_handler(message):
+    recommended_handler.handle_command(message)
+
+
 # bot help message
-bot_help_reply = "I can show you which are your top 10 songs right now or even recommend you some new tracks.\n\nYou can make me do this for you by using these commands:\n\n/lastplayed - Get the last track you played\n/myplaylists - Get a list of the playlists you own\n/mytopten - Get a list of the top 10 songs you listen to the most lately\n/recommended - Get a list of 5 tracks you might like based on what you're listening to these days"
+bot_help_reply = "I can notify you about playlists activity, recommend you songs or show you your top ten.\n\nYou can make me do this for you by using these commands:\n\n/lastplayed - Get the last track you played\n/myplaylists - Get a list of the playlists you own\n/mytopten - Get a list of the top 10 songs you listen to the most lately\n/recommended - Get a list of 5 tracks you might like based on what you're listening to these days"
 
 
 @bot.message_handler(commands=["help"])
@@ -423,7 +431,7 @@ def start_command_handler(message):
     help_command_handler(message)
 
 
-# fallback for any message
+# fallback for any message that's not a command
 @bot.message_handler(
     func=lambda message: True, content_types=["text", "number", "document", "photo"]
 )
