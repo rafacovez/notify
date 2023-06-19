@@ -12,7 +12,7 @@ load_dotenv()
 TOKEN = os.getenv("BOT_API_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
-database = os.getenv("SPOTIFY_ACCOUNTS_DB")
+database = os.getenv("NOTIFY_DB")
 
 # create a new Spotipy instance
 scope = (
