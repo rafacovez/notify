@@ -1,3 +1,14 @@
+## Disclaimer: Notify App is in Development Mode
+
+Please note that the Notify app is currently in development mode, and as a result, you won't be able to use it directly by visiting [https://t.me/playlistNotificationBot](https://t.me/playlistNotificationBot) without reaching out to me first.
+
+### Usage Instructions:
+
+1. If you are interested in using the Notify app, contact me to be manually added to the whitelist. You can reach out to me through adanescollante@gmail.com to request access.
+2. Once you have contacted me and your request has been approved, you will receive further instructions on how to access and use the Notify app.
+
+I am actively working on getting the Notify app into production mode to eliminate the manual whitelist process. I have reached out to the Spotify Developer Team to expedite this transition.
+
 # Notify
 
 Notify is a Telegram bot that allows you to manage your playlist notifications and receive updates whenever there are changes to your favorite playlists on Spotify. It also offers a range of features to help you interact with your Spotify data.
