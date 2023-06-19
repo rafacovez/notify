@@ -7,7 +7,7 @@ from flask import Flask, request
 
 load_dotenv()
 
-database = os.getenv("SPOTIFY_ACCOUNTS_DB")
+database = os.getenv("NOTIFY_DB")
 
 app = Flask(__name__)
 
