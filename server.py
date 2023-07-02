@@ -3,7 +3,7 @@ import sqlite3
 
 import requests
 from dotenv import load_dotenv
-from flask import Flask, request
+from flask import Flask, render_template, request
 
 load_dotenv()
 
@@ -17,13 +17,12 @@ def callback():
     conn = sqlite3.connect(database)
     cursor = conn.cursor()
 
-    # handle if error or authorization denied
+    # handle authorization denied
     error = request.args.get("error")
     if error:
-        cursor.close()
-        conn.close()
-        return "Authorization denied"
+        return render_template("denied.html")
 
+    # handle authorization code
     code = request.args.get("code")
     if code:
         # exchange authorization code for an access token
@@ -58,19 +57,20 @@ def callback():
             print("Error storing access token:", e)
             conn.rollback()
 
-        cursor.close()
-        conn.close()
+        return render_template("auth.html")
 
-        return "The authorization process was successful, you can close this page and return to Telegram now."
-
-    # handle other errors
     cursor.close()
     conn.close()
-    return "Unexpected error"
+
+    # handle other errors
+    return render_template("error.html")
 
 
 redirect_host = os.getenv("REDIRECT_HOST")
 redirect_port = os.getenv("REDIRECT_PORT")
 
 if __name__ == "__main__":
-    app.run(host=redirect_host, port=redirect_port)
+    try:
+        app.run(host=redirect_host, port=redirect_port)
+    except Exception as e:
+        print(f"Error running app: {e}")
