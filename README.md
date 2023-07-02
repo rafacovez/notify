@@ -25,7 +25,7 @@ Notify is a Telegram bot that allows you to manage your playlist notifications a
 
 ## Getting Started
 
-To use the bot, you can eithers start a conversation with [Notify Bot](https://t.me/notificationPlaylistBot) link or by searching for `notificationPlaylistBot` in your Telegram app search bar.
+To use the bot, you can eithers start a conversation with [Notify Bot](https://t.me/playlistNotificationBot) link or by searching for `playlistNotificationBot` in your Telegram app search bar.
 
 ## Dependencies
 
