@@ -16,12 +16,12 @@ app: Flask = Flask(__name__)
 @app.route("/callback")
 def callback():
     try:
-        conn = sqlite3.connect(database)
+        conn: sqlite3.Connection = sqlite3.connect(database)
 
     except Exception as e:
         print(f"Error connecting to database: {e}")
 
-    cursor = conn.cursor()
+    cursor: sqlite3.Cursor = conn.cursor()
 
     # handle authorization denied
     error: str = request.args.get("error")
