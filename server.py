@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from typing import List
 
 import requests
 from dotenv import load_dotenv
@@ -7,44 +8,49 @@ from flask import Flask, render_template, request
 
 load_dotenv()
 
-database = os.getenv("NOTIFY_DB")
+database: str = os.getenv("NOTIFY_DB")
 
-app = Flask(__name__)
+app: Flask = Flask(__name__)
 
 
 @app.route("/callback")
 def callback():
-    conn = sqlite3.connect(database)
+    try:
+        conn = sqlite3.connect(database)
+
+    except Exception as e:
+        print(f"Error connecting to database: {e}")
+
     cursor = conn.cursor()
 
     # handle authorization denied
-    error = request.args.get("error")
+    error: str = request.args.get("error")
     if error:
         return render_template("denied.html")
 
     # handle authorization code
-    code = request.args.get("code")
+    code: str = request.args.get("code")
     if code:
         # exchange authorization code for an access token
-        token_endpoint = "https://accounts.spotify.com/api/token"
-        client_id = os.getenv("SPOTIFY_CLIENT_ID")
-        client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
-        redirect_uri = os.getenv("REDIRECT_URI")
-        params = {
+        token_endpoint: str = "https://accounts.spotify.com/api/token"
+        client_id: str = os.getenv("SPOTIFY_CLIENT_ID")
+        client_secret: str = os.getenv("SPOTIFY_CLIENT_SECRET")
+        redirect_uri: str = os.getenv("REDIRECT_URI")
+        params: List[str] = {
             "grant_type": "authorization_code",
             "code": code,
             "redirect_uri": redirect_uri,
             "client_id": client_id,
             "client_secret": client_secret,
         }
-        response = requests.post(token_endpoint, data=params)
-        response_data = response.json()
+        response: str = requests.post(token_endpoint, data=params)
+        response_data: str = response.json()
 
         # get user_id
-        user_id = request.args.get("state")
+        user_id: str = request.args.get("state")
 
-        refresh_token = response_data.get("refresh_token")
-        access_token = response_data.get("access_token")
+        refresh_token: str = response_data.get("refresh_token")
+        access_token: str = response_data.get("access_token")
 
         # store the access token in the database
         try:
@@ -66,8 +72,8 @@ def callback():
     return render_template("error.html")
 
 
-redirect_host = os.getenv("REDIRECT_HOST")
-redirect_port = os.getenv("REDIRECT_PORT")
+redirect_host: str = os.getenv("REDIRECT_HOST")
+redirect_port: str = os.getenv("REDIRECT_PORT")
 
 if __name__ == "__main__":
     try:
