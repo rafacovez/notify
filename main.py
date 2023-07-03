@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from typing import *
 
 from dotenv import load_dotenv
 from spotipy import Spotify
@@ -9,27 +10,14 @@ from telebot.types import BotCommand, Message
 
 from my_functions import *
 
-# loads environment variables
 load_dotenv()
-
-# creates a new Spotipy instance
-scope: str = "user-read-private user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative"
-
-sp_oauth: SpotifyOAuth = SpotifyOAuth(
-    client_id=os.getenv("SPOTIFY_CLIENT_ID"),
-    client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
-    redirect_uri=os.getenv("REDIRECT_URI"),
-    scope=scope,
-)
-
-sp: Spotify = Spotify(oauth_manager=sp_oauth)
 
 
 class Database:
-    def __init__(self, database) -> None:
+    def __init__(self, database: str) -> None:
         self.database: str = database
-        self.conn = None
-        self.cursor = None
+        self.conn: sqlite3.Connection = None
+        self.cursor: sqlite3.Cursor = None
 
     def __do_nothing(self) -> None:
         pass
@@ -68,17 +56,32 @@ class Database:
         self.process(logic)
 
 
+class Spotify:
+    def __init__(
+        self, client_id: str, client_secret: str, redirect_uri: str, scope: str
+    ) -> None:
+        self.client_id: str = client_id
+        self.client_secret: str = client_secret
+        self.redirect_uri: str = redirect_uri
+        self.scope: str = scope
+
+    def __do_nothing(self) -> None:
+        pass
+
+
 class NotifyBot:
     def __init__(
         self,
-        bot_token,
-        database,
+        bot_token: str,
+        spotify: Spotify,
+        database: sqlite3.Connection,
     ) -> None:
         self.bot_token: str = bot_token
         self.bot: TeleBot = TeleBot(self.bot_token)
-        self.database = database
+        self.spotify: Spotify = spotify
+        self.database: sqlite3.Connection = database
         self.bot.register_message_handler(self.handle_message)
-        self.commands = {
+        self.commands: Dict[str, Dict[str, Union[Callable[..., Any], str]]] = {
             "notify": {
                 "func": self.__do_nothing,
                 "desc": "Start tracking a playlist to get notified when someone else adds or removes a song from it.",
@@ -109,7 +112,7 @@ class NotifyBot:
             },
         }
 
-        self.command_list = []
+        self.command_list: List[BotCommand] = []
         for key, val in self.commands.items():
             self.command_list.append(BotCommand(f"/{key}", val.get("desc", "")))
 
@@ -158,7 +161,14 @@ class NotifyBot:
 
 if __name__ == "__main__":
     bot = NotifyBot(
-        bot_token=os.getenv("BOT_API_TOKEN"), database=Database(os.getenv("NOTIFY_DB"))
+        bot_token=os.getenv("BOT_API_TOKEN"),
+        spotify=Spotify(
+            client_id=os.getenv("SPOTIFY_CLIENT_ID"),
+            client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
+            redirect_uri=os.getenv("REDIRECT_URI"),
+            scope="user-read-private user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative",
+        ),
+        database=Database(os.getenv("NOTIFY_DB")),
     )
 
     try:
