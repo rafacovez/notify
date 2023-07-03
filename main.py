@@ -12,13 +12,6 @@ from my_functions import *
 # loads environment variables
 load_dotenv()
 
-# defines bot and its values
-TOKEN: str = os.getenv("BOT_API_TOKEN")
-bot: TeleBot = TeleBot(TOKEN)
-
-# defines database
-database: str = os.getenv("NOTIFY_DB")
-
 # creates a new Spotipy instance
 scope: str = "user-read-private user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative"
 
@@ -32,9 +25,58 @@ sp_oauth: SpotifyOAuth = SpotifyOAuth(
 sp: Spotify = Spotify(oauth_manager=sp_oauth)
 
 
+class Database:
+    def __init__(self, database) -> None:
+        self.database: str = database
+        self.conn = None
+        self.cursor = None
+
+    def __do_nothing(self) -> None:
+        pass
+
+    def __connect(self) -> None:
+        try:
+            self.conn = sqlite3.connect(self.database)
+            print(f"Successfully connected to {self.database}")
+
+        except sqlite3.Error as e:
+            print(f"Error connecting to database: {e}")
+
+        self.cursor = self.conn.cursor()
+
+    def __disconnect(self) -> None:
+        try:
+            self.conn.commit()
+            print(f"Successfully commited changes to {self.database}")
+        except sqlite3.Error as e:
+            print(f"Error commiting changes to {self.database}: {e}")
+        self.cursor.close()
+        self.conn.close()
+
+    def process(self, func=None) -> None:
+        if func is None:
+            self.__do_nothing()
+        else:
+            self.__connect()
+            func()
+            self.__disconnect()
+
+    def do_something(self) -> None:
+        def logic():
+            print("It's alive! IT'S ALIVEEE!")
+
+        self.process(logic)
+
+
 class NotifyBot:
-    def __init__(self, bot: TeleBot) -> None:
-        self.bot = bot
+    def __init__(
+        self,
+        bot_token,
+        database,
+    ) -> None:
+        self.bot_token: str = bot_token
+        self.bot: TeleBot = TeleBot(self.bot_token)
+        self.database = database
         self.bot.register_message_handler(self.handle_message)
         self.commands = {
             "notify": {
@@ -115,7 +157,9 @@ class NotifyBot:
 
 
 if __name__ == "__main__":
-    bot = NotifyBot(bot)
+    bot = NotifyBot(
+        bot_token=os.getenv("BOT_API_TOKEN"), database=Database(os.getenv("NOTIFY_DB"))
+    )
 
     try:
         bot.start_listening()
