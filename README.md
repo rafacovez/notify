@@ -7,25 +7,13 @@ Please note that the Notify app is currently in development mode, and as a resul
 1. If you are interested in using the Notify app, contact me to be manually added to the whitelist. You can reach out to me through adanescollante@gmail.com to request access.
 2. Once you have contacted me and your request has been approved, you will receive further instructions on how to access and use the Notify app.
 
-I am actively working on getting the Notify app into production mode to eliminate the manual whitelist process. I have reached out to the Spotify Developer Team to expedite this transition.
-
 # Notify
 
 Notify is a Telegram bot that allows you to manage your playlist notifications and receive updates whenever there are changes to your favorite playlists on Spotify. It also offers a range of features to help you interact with your Spotify data.
 
-## Features
-
-- **notify**: Start tracking a playlist to get notified when someone else adds or removes a song from it.
-- **/removenotify**: Stop tracking a playlist.
-- **/shownotifylist**: Get a list of the tracked playlists.
-- **/lastplayed**: Get the last track you played.
-- **/myplaylists**: Get a list of the playlists you own.
-- **/mytopten**: Get a list of the top 10 songs you listen to the most lately.
-- **/recommended**: Get a list of 5 tracks you might like based on what you're listening to these days.
-
 ## Getting Started
 
-To use the bot, you can eithers start a conversation with [Notify Bot](https://t.me/notificationPlaylistBot) link or by searching for `notificationPlaylistBot` in your Telegram app search bar.
+To use the bot, you can eithers start a conversation with [Notify Bot](https://t.me/playlistNotificationBot) link or by searching for `playlistNotificationBot` in your Telegram app search bar.
 
 ## Dependencies
 
