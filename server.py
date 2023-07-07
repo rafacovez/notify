@@ -65,32 +65,26 @@ def callback() -> Any:
             spotify_user_display: str = spotify_sp.current_user()["display_name"]
             spotify_user_id: str = spotify_sp.current_user()["id"]
 
-            if database.user_exists(telegram_user_id):
-                print(
-                    f"User {telegram_user_id} is already stored in {database.database}"
+            # store the access token in the database
+            def update_table() -> None:
+                database.cursor.execute(
+                    "INSERT INTO users (id, telegram_user_id, spotify_user_display, spotify_user_id, refresh_token, access_token) VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        None,
+                        telegram_user_id,
+                        spotify_user_display,
+                        spotify_user_id,
+                        refresh_token,
+                        access_token,
+                    ),
                 )
 
-            else:
-                # store the access token in the database
-                def update_table() -> None:
-                    database.cursor.execute(
-                        "INSERT INTO users (id, telegram_user_id, spotify_user_display, spotify_user_id, refresh_token, access_token) VALUES (?, ?, ?, ?, ?, ?)",
-                        (
-                            None,
-                            telegram_user_id,
-                            spotify_user_display,
-                            spotify_user_id,
-                            refresh_token,
-                            access_token,
-                        ),
-                    )
-
-                database.process(update_table)
+            database.process(update_table)
 
             return render_template("auth.html")
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred when trying to authenticate the user: {e}")
 
     # handle any errors
     return render_template("error.html")
