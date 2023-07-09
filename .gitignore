@@ -4,5 +4,5 @@ __pycache__/
 *.db
 db.sqlite3
 *.log
-env
-.env
+.venv
+.env.local
