@@ -8,7 +8,7 @@ from spotipy.oauth2 import SpotifyOAuth  # spotify authentication handler
 from telebot import TeleBot  # telegram bots interaction library
 from telebot.types import *
 
-load_dotenv()
+load_dotenv(dotenv_path='.env.local')
 
 
 class Database:
@@ -408,14 +408,14 @@ class NotifyBot:
 
 if __name__ == "__main__":
     bot = NotifyBot(
-        bot_token=os.getenv("BOT_API_TOKEN"),
+        bot_token=os.environ.get("BOT_API_TOKEN"),
         spotify=SpotifyHandler(
-            client_id=os.getenv("SPOTIFY_CLIENT_ID"),
-            client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
-            redirect_uri=os.getenv("REDIRECT_URI"),
+            client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
+            client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+            redirect_uri=os.environ.get("REDIRECT_URI"),
             scope="user-read-private user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative",
         ),
-        database=Database(os.getenv("NOTIFY_DB")),
+        database=Database(os.environ.get("NOTIFY_DB")),
     )
 
     try:

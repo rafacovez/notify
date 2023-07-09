@@ -8,24 +8,24 @@ from spotipy import Spotify
 
 from main import Database, NotifyBot, SpotifyHandler
 
-load_dotenv()
+load_dotenv(dotenv_path='.env.local')
 
-database: Database = Database(os.getenv("NOTIFY_DB"))
+database: Database = Database(os.environ.get("NOTIFY_DB"))
 spotify: Spotify = SpotifyHandler(
-    client_id=os.getenv("SPOTIFY_CLIENT_ID"),
-    client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
-    redirect_uri=os.getenv("REDIRECT_URI"),
+    client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
+    client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+    redirect_uri=os.environ.get("REDIRECT_URI"),
     scope="user-read-private user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative",
 )
 bot: NotifyBot = NotifyBot(
-    bot_token=os.getenv("BOT_API_TOKEN"),
+    bot_token=os.environ.get("BOT_API_TOKEN"),
     spotify=SpotifyHandler(
-        client_id=os.getenv("SPOTIFY_CLIENT_ID"),
-        client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
-        redirect_uri=os.getenv("REDIRECT_URI"),
+        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
+        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+        redirect_uri=os.environ.get("REDIRECT_URI"),
         scope="user-read-private user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative",
     ),
-    database=Database(os.getenv("NOTIFY_DB")),
+    database=Database(os.environ.get("NOTIFY_DB")),
 )
 app: Flask = Flask(__name__)
 
@@ -43,9 +43,9 @@ def callback() -> Any:
         if code:
             # exchange authorization code for an access token
             token_endpoint: str = "https://accounts.spotify.com/api/token"
-            client_id: str = os.getenv("SPOTIFY_CLIENT_ID")
-            client_secret: str = os.getenv("SPOTIFY_CLIENT_SECRET")
-            redirect_uri: str = os.getenv("REDIRECT_URI")
+            client_id: str = os.environ.get("SPOTIFY_CLIENT_ID")
+            client_secret: str = os.environ.get("SPOTIFY_CLIENT_SECRET")
+            redirect_uri: str = os.environ.get("REDIRECT_URI")
             params: List[str] = {
                 "grant_type": "authorization_code",
                 "code": code,
@@ -90,8 +90,8 @@ def callback() -> Any:
     return render_template("error.html")
 
 
-redirect_host: str = os.getenv("REDIRECT_HOST")
-redirect_port: str = os.getenv("REDIRECT_PORT")
+redirect_host: str = os.environ.get("REDIRECT_HOST")
+redirect_port: str = os.environ.get("REDIRECT_PORT")
 
 if __name__ == "__main__":
     try:
