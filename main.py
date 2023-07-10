@@ -8,7 +8,7 @@ from spotipy.oauth2 import SpotifyOAuth  # spotify authentication handler
 from telebot import TeleBot  # telegram bots interaction library
 from telebot.types import *
 
-load_dotenv(dotenv_path='.env.local')
+load_dotenv(dotenv_path=".env.local")
 
 
 class Database:
@@ -165,7 +165,7 @@ class NotifyBot:
             },
             "logout": {
                 "func": self.delete_user,
-                "desc": "Permanently deletes your data from Notify",
+                "desc": "Permanently deletes your data from Notify.",
             },
             "notify": {
                 "func": self.notify,
@@ -298,11 +298,11 @@ class NotifyBot:
         top_ten_artists: List[str] = [track["artists"][0]["name"] for track in top_ten]
         top_ten_message: str = ""
 
-        for track_name, track_url, artist_name in zip(
-            top_ten_names, top_ten_urls, top_ten_artists
+        for i, (track_name, track_url, artist_name) in enumerate(
+            zip(top_ten_names, top_ten_urls, top_ten_artists), start=1
         ):
             top_ten_message += (
-                f"\n- <a href='{track_url}'>{track_name}</a> by {artist_name}"
+                f"\n{i}- <a href='{track_url}'>{track_name}</a> by {artist_name}"
             )
 
         self.bot.send_message(
