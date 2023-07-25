@@ -1,6 +1,8 @@
 import os
 import sqlite3
 import threading
+from optparse import OptionParser
+from time import sleep
 from typing import *
 
 import requests
@@ -146,8 +148,10 @@ class SpotifyHandler:
         return self.sp_oauth.refresh_access_token(self.refresh_token)["access_token"]
 
 
-class NotifyBot:
+class NotifyBot(threading.Thread):
     def __init__(self, bot_token: str, spotify: Spotify, database: Database) -> None:
+        threading.Thread.__init__(self)
+        self.kill_received = False
         self.bot_token: str = bot_token
         self.bot: TeleBot = TeleBot(self.bot_token)
         self.database: Database = database
@@ -401,21 +405,28 @@ class NotifyBot:
             self.determine_function(message)
 
     def start_listening(self) -> None:
-        print("Notify started!")
-        self.bot.infinity_polling()
+        try:
+            print("Notify started!")
+            self.bot.infinity_polling()
 
-    def stop_listening(self) -> None:
-        print("Notify stopped.")
-        self.bot.stop_polling()
+        except Exception as e:
+            print(f"Bot polling error: {e}")
+
+    def run(self):
+        while not self.kill_received:
+            self.start_listening()
+            sleep(1)
 
 
-class Server:
+class Server(threading.Thread):
     def __init__(
         self,
         redirect_host: str = os.environ.get("REDIRECT_HOST"),
         redirect_port: str = os.environ.get("REDIRECT_PORT"),
         bot: NotifyBot = NotifyBot,
     ) -> None:
+        threading.Thread.__init__(self)
+        self.kill_received = False
         self.app: Flask = Flask(__name__)
         self.redirect_host: str = redirect_host
         self.redirect_port: str = redirect_port
@@ -493,15 +504,41 @@ class Server:
     def __do_nothing(self) -> None:
         pass
 
-    def run(self) -> None:
+    def start_listening(self) -> None:
         try:
             print(f"Server is up and running!")
             self.app.run(host=self.redirect_host, port=self.redirect_port)
+
         except Exception as e:
             print(f"Error trying to run server: {e}")
 
+    def run(self):
+        while not self.kill_received:
+            self.start_listening()
+            sleep(1)
 
-if __name__ == "__main__":
+
+def parse_options():
+    parser = OptionParser()
+    parser.add_option(
+        "-t",
+        action="store",
+        type="int",
+        dest="threadNum",
+        default=1,
+        help="thread count [1]",
+    )
+    (options, args) = parser.parse_args()
+    return options
+
+
+def has_live_threads(threads):
+    return True in [t.is_alive() for t in threads]
+
+
+def main():
+    options = parse_options()
+    threads = []
     bot = NotifyBot(
         bot_token=os.environ.get("BOT_API_TOKEN"),
         spotify=SpotifyHandler(
@@ -514,14 +551,28 @@ if __name__ == "__main__":
     )
     server = Server(bot=bot)
 
-    try:
-        server_thread = threading.Thread(target=server.run)
-        bot_thread = threading.Thread(target=bot.start_listening)
+    for i in range(options.threadNum):
+        bot_thread = bot
+        server_thread = server
 
-        server_thread.start()
         bot_thread.start()
+        server_thread.start()
 
-        server_thread.join()
-        bot_thread.join()
-    except Exception as e:
-        print(f"Error starting bot: {e}")
+        threads.append(bot_thread)
+        threads.append(server_thread)
+
+    while has_live_threads(threads):
+        try:
+            # synchronization timeout of threads kill
+            [t.join(1) for t in threads if t is not None and t.is_alive()]
+        except KeyboardInterrupt:
+            # Ctrl-C handling and send kill to threads
+            print("Stopping Notify... Hit Ctrl + C again if the bot hasn't exited yet")
+            for t in threads:
+                t.kill_received = True
+
+    print("Exited")
+
+
+if __name__ == "__main__":
+    main()
