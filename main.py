@@ -1,8 +1,13 @@
 import os
 import sqlite3
+import threading
+from optparse import OptionParser
+from time import sleep
 from typing import *
 
+import requests
 from dotenv import load_dotenv
+from flask import Flask, render_template, request
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth  # spotify authentication handler
 from telebot import TeleBot  # telegram bots interaction library
@@ -143,12 +148,14 @@ class SpotifyHandler:
         return self.sp_oauth.refresh_access_token(self.refresh_token)["access_token"]
 
 
-class NotifyBot:
+class NotifyBot(threading.Thread):
     def __init__(self, bot_token: str, spotify: Spotify, database: Database) -> None:
+        threading.Thread.__init__(self)
+        self.kill_received = False
         self.bot_token: str = bot_token
         self.bot: TeleBot = TeleBot(self.bot_token)
-        self.spotify: SpotifyHandler = spotify
         self.database: Database = database
+        self.spotify: SpotifyHandler = spotify
         self.message: Optional[Message] = None
         self.user_id: Optional[int] = None
         self.chat_id: Optional[int] = None
@@ -398,15 +405,140 @@ class NotifyBot:
             self.determine_function(message)
 
     def start_listening(self) -> None:
-        print("Notify started!")
-        self.bot.infinity_polling()
+        try:
+            print("Notify started!")
+            self.bot.infinity_polling()
 
-    def stop_listening(self) -> None:
-        print("Notify stopped.")
-        self.bot.stop_polling()
+        except Exception as e:
+            print(f"Bot polling error: {e}")
+
+    def run(self):
+        while not self.kill_received:
+            self.start_listening()
+            sleep(1)
 
 
-if __name__ == "__main__":
+class Server(threading.Thread):
+    def __init__(
+        self,
+        redirect_host: str = os.environ.get("REDIRECT_HOST"),
+        redirect_port: str = os.environ.get("REDIRECT_PORT"),
+        bot: NotifyBot = NotifyBot,
+    ) -> None:
+        threading.Thread.__init__(self)
+        self.kill_received = False
+        self.app: Flask = Flask(__name__)
+        self.redirect_host: str = redirect_host
+        self.redirect_port: str = redirect_port
+        self.bot: NotifyBot = bot
+        self.database: Database = self.bot.database
+        self.spotify: SpotifyHandler = self.bot.spotify
+
+        @self.app.errorhandler(Exception)
+        def handle_error(e) -> Any:
+            print(f"An error occurred: {e}")
+
+            return render_template("error.html"), 500
+
+        @self.app.route("/callback")
+        def callback() -> Any:
+            try:
+                # handle authorization denied
+                error: str = request.args.get("error")
+                if error:
+                    return render_template("denied.html")
+
+                # handle authorization code
+                code: str = request.args.get("code")
+                if code:
+                    # exchange authorization code for an access token
+                    token_endpoint: str = "https://accounts.spotify.com/api/token"
+                    client_id: str = os.environ.get("SPOTIFY_CLIENT_ID")
+                    client_secret: str = os.environ.get("SPOTIFY_CLIENT_SECRET")
+                    redirect_uri: str = os.environ.get("REDIRECT_URI")
+                    params: List[str] = {
+                        "grant_type": "authorization_code",
+                        "code": code,
+                        "redirect_uri": redirect_uri,
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                    }
+                    response: str = requests.post(token_endpoint, data=params)
+                    response_data: str = response.json()
+
+                    telegram_user_id: str = request.args.get("state")
+
+                    refresh_token: str = response_data.get("refresh_token")
+                    access_token: str = response_data.get("access_token")
+
+                    spotify_sp: Spotify = self.spotify.get_user_sp(access_token)
+                    spotify_user_display: str = spotify_sp.current_user()[
+                        "display_name"
+                    ]
+                    spotify_user_id: str = spotify_sp.current_user()["id"]
+
+                    # store the access token in the database
+                    def update_table() -> None:
+                        self.database.cursor.execute(
+                            "INSERT INTO users (id, telegram_user_id, spotify_user_display, spotify_user_id, refresh_token, access_token) VALUES (?, ?, ?, ?, ?, ?)",
+                            (
+                                None,
+                                telegram_user_id,
+                                spotify_user_display,
+                                spotify_user_id,
+                                refresh_token,
+                                access_token,
+                            ),
+                        )
+
+                    self.database.process(update_table)
+
+                    return render_template("auth.html")
+
+            except Exception as e:
+                print(f"An error occurred when trying to authenticate the user: {e}")
+
+            # handle any errors
+            return render_template("error.html")
+
+    def __do_nothing(self) -> None:
+        pass
+
+    def start_listening(self) -> None:
+        try:
+            print(f"Server is up and running!")
+            self.app.run(host=self.redirect_host, port=self.redirect_port)
+
+        except Exception as e:
+            print(f"Error trying to run server: {e}")
+
+    def run(self):
+        while not self.kill_received:
+            self.start_listening()
+            sleep(1)
+
+
+def parse_options():
+    parser = OptionParser()
+    parser.add_option(
+        "-t",
+        action="store",
+        type="int",
+        dest="threadNum",
+        default=1,
+        help="thread count [1]",
+    )
+    (options, args) = parser.parse_args()
+    return options
+
+
+def has_live_threads(threads):
+    return True in [t.is_alive() for t in threads]
+
+
+def main():
+    options = parse_options()
+    threads = []
     bot = NotifyBot(
         bot_token=os.environ.get("BOT_API_TOKEN"),
         spotify=SpotifyHandler(
@@ -417,8 +549,30 @@ if __name__ == "__main__":
         ),
         database=Database(os.environ.get("NOTIFY_DB")),
     )
+    server = Server(bot=bot)
 
-    try:
-        bot.start_listening()
-    except Exception as e:
-        print(f"Error starting bot: {e}")
+    for i in range(options.threadNum):
+        bot_thread = bot
+        server_thread = server
+
+        bot_thread.start()
+        server_thread.start()
+
+        threads.append(bot_thread)
+        threads.append(server_thread)
+
+    while has_live_threads(threads):
+        try:
+            # synchronization timeout of threads kill
+            [t.join(1) for t in threads if t is not None and t.is_alive()]
+        except KeyboardInterrupt:
+            # Ctrl-C handling and send kill to threads
+            print("Stopping Notify... Hit Ctrl + C again if the bot hasn't exited yet")
+            for t in threads:
+                t.kill_received = True
+
+    print("Exited")
+
+
+if __name__ == "__main__":
+    main()
