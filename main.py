@@ -361,14 +361,10 @@ class NotifyBot(threading.Thread):
         )
 
     def determine_function(self, message: Message) -> None:
-        self.message = message
         message_text: str = self.message.text.strip()
-        self.user_id: int = self.message.from_user.id
-        self.chat_id: int = self.message.chat.id
         command_exists: bool = False
 
         if message_text.startswith("/"):
-            self.bot.send_chat_action(self.chat_id, "typing")
             command: str = self.message.text
             for command_item in self.command_list:
                 if command == command_item.command:
@@ -401,6 +397,12 @@ class NotifyBot(threading.Thread):
             self.bot.send_message(self.chat_id, "Sorry, I only speak commands...")
 
     def handle_message(self, message: Message) -> None:
+        self.message = message
+        self.user_id: int = self.message.from_user.id
+        self.chat_id: int = self.message.chat.id
+
+        self.bot.send_chat_action(self.chat_id, "typing")
+
         if message.content_type == "text":
             self.determine_function(message)
 
