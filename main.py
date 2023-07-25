@@ -319,7 +319,6 @@ class NotifyBot(threading.Thread):
         )
 
     def recommended(self) -> None:
-        self.bot.send_message(self.chat_id, "Let me think...", parse_mode="HTML")
         top_five_artists: Dict[
             str, any
         ] = self.spotify.user_sp.current_user_top_artists(
@@ -362,10 +361,7 @@ class NotifyBot(threading.Thread):
         )
 
     def determine_function(self, message: Message) -> None:
-        self.message = message
         message_text: str = self.message.text.strip()
-        self.user_id: int = self.message.from_user.id
-        self.chat_id: int = self.message.chat.id
         command_exists: bool = False
 
         if message_text.startswith("/"):
@@ -401,6 +397,12 @@ class NotifyBot(threading.Thread):
             self.bot.send_message(self.chat_id, "Sorry, I only speak commands...")
 
     def handle_message(self, message: Message) -> None:
+        self.message = message
+        self.user_id: int = self.message.from_user.id
+        self.chat_id: int = self.message.chat.id
+
+        self.bot.send_chat_action(self.chat_id, "typing")
+
         if message.content_type == "text":
             self.determine_function(message)
 
@@ -518,6 +520,7 @@ class Server(threading.Thread):
             sleep(1)
 
 
+# configuration for script threads
 def parse_options():
     parser = OptionParser()
     parser.add_option(
@@ -532,6 +535,7 @@ def parse_options():
     return options
 
 
+# checks if there's any live threads
 def has_live_threads(threads):
     return True in [t.is_alive() for t in threads]
 
