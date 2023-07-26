@@ -168,39 +168,39 @@ class NotifyBot(threading.Thread):
             },
             "login": {
                 "func": self.auth_user,
-                "desc": "Authorize Notify to access your Spotify account.",
+                "desc": "Authorize Notify to access your Spotify account",
             },
             "logout": {
                 "func": self.delete_user,
-                "desc": "Permanently deletes your data from Notify.",
+                "desc": "Permanently deletes your data from Notify",
             },
             "notify": {
                 "func": self.notify,
-                "desc": "Start tracking a playlist to get notified when someone else adds or removes a song from it.",
+                "desc": "Start tracking a playlist to get notified when someone else adds or removes a song from it",
             },
             "removenotify": {
                 "func": self.notify,
-                "desc": "Stop tracking a playlist.",
+                "desc": "Stop tracking a playlist",
             },
             "shownotify": {
                 "func": self.notify,
-                "desc": "Get a list of the tracked playlists.",
+                "desc": "Get a list of the playlists you're currently tracking",
             },
             "lastplayed": {
                 "func": self.last_played,
-                "desc": "Get the last track you played.",
+                "desc": "Get the last song you played",
             },
             "playlists": {
                 "func": self.playlists,
-                "desc": "Get a list of the playlists you own.",
+                "desc": "Get a list of the playlists you own",
             },
             "topten": {
                 "func": self.top_ten,
-                "desc": "Get a list of the top 10 songs you listen to the most lately.",
+                "desc": "Get a list of the top 10 songs you've listen to the most lately",
             },
             "recommended": {
                 "func": self.recommended,
-                "desc": "Get a list of 5 tracks you might like based on what you're listening to these days.",
+                "desc": "Get a list of 10 songs you might like based on what you've been listening to",
             },
         }
         self.command_list: List[BotCommand] = []
