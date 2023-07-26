@@ -361,40 +361,36 @@ class NotifyBot(threading.Thread):
         )
 
     def determine_function(self, message: Message) -> None:
-        message_text: str = self.message.text.strip()
+        command: str = self.message.text
         command_exists: bool = False
 
-        if message_text.startswith("/"):
-            command: str = self.message.text
-            for command_item in self.command_list:
-                if command == command_item.command:
-                    command_exists = True
-                    self.database.create_users_table()
-                    if self.database.user_exists(self.user_id):
-                        self.spotify.refresh_token = self.database.get_refresh_token(
-                            self.user_id
-                        )
-                        self.spotify.access_token = self.spotify.refresh_access_token()
-                        self.database.store_access_token(
-                            self.spotify.access_token, self.user_id
-                        )
-                        self.spotify.user_sp = Spotify(auth=self.spotify.access_token)
-                        command_func: function = self.commands[
-                            command_item.command.strip("/")
-                        ]["func"]
-                        command_func()
-                    else:
-                        self.auth_user()
+        for command_item in self.command_list:
+            if command == command_item.command:
+                command_exists = True
+                self.database.create_users_table()
 
-            if not command_exists:
-                self.bot.send_message(
-                    self.chat_id,
-                    "My creators didn't think about that one yet! <a href='https://github.com/rafacovez/notify'>is it a good idea though?</a>",
-                    parse_mode="HTML",
-                )
+                if self.database.user_exists(self.user_id):
+                    self.spotify.refresh_token = self.database.get_refresh_token(
+                        self.user_id
+                    )
+                    self.spotify.access_token = self.spotify.refresh_access_token()
+                    self.database.store_access_token(
+                        self.spotify.access_token, self.user_id
+                    )
+                    self.spotify.user_sp = Spotify(auth=self.spotify.access_token)
+                    command_func: function = self.commands[
+                        command_item.command.strip("/")
+                    ]["func"]
+                    command_func()
+                else:
+                    self.auth_user()
 
-        else:
-            self.bot.send_message(self.chat_id, "Sorry, I only speak commands...")
+        if not command_exists:
+            self.bot.send_message(
+                self.chat_id,
+                "My creators didn't think about that one yet! <a href='https://github.com/rafacovez/notify'>is it a good idea though?</a>",
+                parse_mode="HTML",
+            )
 
     def handle_message(self, message: Message) -> None:
         self.message = message
@@ -403,8 +399,11 @@ class NotifyBot(threading.Thread):
 
         self.bot.send_chat_action(self.chat_id, "typing")
 
-        if message.content_type == "text":
-            self.determine_function(message)
+        if message.content_type == "text" and message.text.strip().startswith("/"):
+            self.determine_function(self.message)
+
+        else:
+            self.bot.send_message(self.chat_id, "Sorry, I only speak commands...")
 
     def start_listening(self) -> None:
         try:
