@@ -59,7 +59,7 @@ class Database:
     def create_users_table(self) -> None:
         def logic() -> None:
             self.cursor.execute(
-                "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, telegram_user_id INTEGER, spotify_user_display TEXT, spotify_user_id TEXT, refresh_token TEXT, access_token TEXT)"
+                "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, telegram_user_id INTEGER, spotify_user_display TEXT, spotify_user_id TEXT, refresh_token TEXT, access_token TEXT, notify TEXT)"
             )
 
         self.process(logic)
@@ -243,9 +243,10 @@ class NotifyBot(threading.Thread):
         )
 
     def notify(self) -> None:
-        self.bot.send_message(
-            self.chat_id, "My developers are working on that... Try it later!"
-        )
+        # TODO: code functionality to add selected playlist ID
+        # to 'notify' cell on notifydb database
+
+        self.bot.send_message(self.chat_id, "Notify!")
 
     def last_played(self) -> None:
         last_played: Dict[str, any] = self.spotify.user_sp.current_user_recently_played(
