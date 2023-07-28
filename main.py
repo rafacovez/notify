@@ -59,7 +59,7 @@ class Database:
     def create_users_table(self) -> None:
         def logic() -> None:
             self.cursor.execute(
-                "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, telegram_user_id INTEGER, spotify_user_display TEXT, spotify_user_id TEXT, refresh_token TEXT, access_token TEXT, notify TEXT)"
+                "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, telegram_user_id INTEGER, spotify_user_display TEXT, spotify_user_id TEXT, refresh_token TEXT, access_token TEXT)"
             )
 
         self.process(logic)
@@ -116,6 +116,19 @@ class Database:
             )
 
         self.process(logic)
+
+    def add_notify(self, playlist: int, user: int) -> None:
+        def logic() -> None:
+            self.cursor.execute(
+                "UPDATE users SET notify = ? WHERE telegram_user_id = ?",
+                (playlist, user),
+            )
+
+        self.process(logic)
+
+    def create_notify_table(self):
+        def logic() -> None:
+            self.cursor.execute("")
 
 
 class SpotifyHandler:
@@ -191,7 +204,7 @@ class NotifyBot(threading.Thread):
                 "desc": "Get the last song you played",
             },
             "playlists": {
-                "func": self.playlists,
+                "func": self.retrieve_playlists,
                 "desc": "Get a list of the playlists you own",
             },
             "topten": {
@@ -242,11 +255,30 @@ class NotifyBot(threading.Thread):
             f"You can try one of these commands out: \n{commands}",
         )
 
+    def get_playlists(self) -> List[Dict[str, any]]:
+        offset: int = 0
+        user_playlists: List[Dict[str, any]] = []
+
+        while True:
+            response: Dict[str, any] = self.spotify.user_sp.current_user_playlists(
+                offset=offset
+            )
+            fetched_playlists: List[Dict[str, any]] = response["items"]
+            user_playlists += fetched_playlists
+            offset += len(fetched_playlists)
+
+            if len(fetched_playlists) < 50:
+                break
+
+        return user_playlists
+
     def notify(self) -> None:
         # TODO: code functionality to add selected playlist ID
         # to 'notify' cell on notifydb database
 
-        self.bot.send_message(self.chat_id, "Notify!")
+        playlists = self.get_playlists()
+
+        print(playlists)
 
     def last_played(self) -> None:
         last_played: Dict[str, any] = self.spotify.user_sp.current_user_recently_played(
@@ -265,20 +297,8 @@ class NotifyBot(threading.Thread):
             parse_mode="HTML",
         )
 
-    def playlists(self) -> None:
-        offset = 0
-        playlists: List[Dict[str, any]] = []
-
-        while True:
-            response: Dict[str, any] = self.spotify.user_sp.current_user_playlists(
-                offset=offset
-            )
-            fetched_playlists: List[Dict[str, any]] = response["items"]
-            playlists += fetched_playlists
-            offset += len(fetched_playlists)
-
-            if len(fetched_playlists) < 50:
-                break
+    def retrieve_playlists(self) -> None:
+        playlists = self.get_playlists()
 
         playlist_names: List[str] = [playlist["name"] for playlist in playlists]
         playlist_urls: List[str] = [
@@ -361,7 +381,7 @@ class NotifyBot(threading.Thread):
             parse_mode="HTML",
         )
 
-    def determine_function(self, message: Message) -> None:
+    def determine_function(self) -> None:
         command: str = self.message.text
         command_exists: bool = False
 
@@ -394,14 +414,14 @@ class NotifyBot(threading.Thread):
             )
 
     def handle_message(self, message: Message) -> None:
-        self.message = message
+        self.message: Message = message
         self.user_id: int = self.message.from_user.id
         self.chat_id: int = self.message.chat.id
 
         self.bot.send_chat_action(self.chat_id, "typing")
 
         if message.content_type == "text" and message.text.strip().startswith("/"):
-            self.determine_function(self.message)
+            self.determine_function()
 
         else:
             self.bot.send_message(self.chat_id, "Sorry, I only speak commands...")
