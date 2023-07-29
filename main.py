@@ -59,7 +59,7 @@ class Database:
     def create_users_table(self) -> None:
         def logic() -> None:
             self.cursor.execute(
-                "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, telegram_user_id INTEGER, spotify_user_display TEXT, spotify_user_id TEXT, refresh_token TEXT, access_token TEXT)"
+                "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, telegram_user_id INTEGER, spotify_user_display TEXT, spotify_user_id TEXT, refresh_token TEXT, access_token TEXT, notify TEXT)"
             )
 
         self.process(logic)
@@ -117,7 +117,17 @@ class Database:
 
         self.process(logic)
 
-    def add_notify(self, playlist: int, user: int) -> None:
+    def get_notify(self, user: int) -> str:
+        def logic() -> str:
+            self.cursor.execute(
+                "SELECT notify from users WHERE telegram_user_id = ?", (user,)
+            )
+
+            return self.cursor.fetchone()[0]
+
+        return self.process(logic)
+
+    def update_notify(self, playlist: str, user: int) -> None:
         def logic() -> None:
             self.cursor.execute(
                 "UPDATE users SET notify = ? WHERE telegram_user_id = ?",
@@ -125,10 +135,6 @@ class Database:
             )
 
         self.process(logic)
-
-    def create_notify_table(self):
-        def logic() -> None:
-            self.cursor.execute("")
 
 
 class SpotifyHandler:
@@ -188,15 +194,15 @@ class NotifyBot(threading.Thread):
                 "desc": "Permanently deletes your data from Notify",
             },
             "notify": {
-                "func": self.notify,
+                "func": self.add_notify,
                 "desc": "Start tracking a playlist to get notified when someone else adds or removes a song from it",
             },
             "removenotify": {
-                "func": self.notify,
+                "func": self.remove_notify,
                 "desc": "Stop tracking a playlist",
             },
             "shownotify": {
-                "func": self.notify,
+                "func": self.add_notify,
                 "desc": "Get a list of the playlists you're currently tracking",
             },
             "lastplayed": {
@@ -272,13 +278,63 @@ class NotifyBot(threading.Thread):
 
         return user_playlists
 
-    def notify(self) -> None:
+    def add_notify(self) -> None:
         # TODO: code functionality to add selected playlist ID
         # to 'notify' cell on notifydb database
 
-        playlists = self.get_playlists()
+        playlists = [
+            InlineKeyboardButton(playlist["name"], callback_data=playlist["id"])
+            for playlist in self.get_playlists()
+        ]
 
-        print(playlists)
+        keyboard = InlineKeyboardMarkup(row_width=2)
+
+        keyboard.add(*playlists)
+
+        self.bot.send_message(
+            self.chat_id,
+            "Click on the playlist you'd like to get notified about",
+            reply_markup=keyboard,
+        )
+
+        @self.bot.callback_query_handler(func=lambda call: True)
+        def handle_callback(call):
+            notify_playlists: str = self.database.get_notify(self.user_id)
+            selected_playlist_id: str = call.data
+            selected_playlist_name: str = self.spotify.user_sp.playlist(
+                selected_playlist_id
+            )["name"]
+            playlist_is_stored: bool = False
+
+            if notify_playlists is not None:
+                notify_playlists_list: List[str] = notify_playlists.split(",")
+
+                for playlist in notify_playlists_list:
+                    if selected_playlist_id == playlist:
+                        playlist_is_stored = True
+
+            if playlist_is_stored:
+                self.bot.send_message(
+                    self.chat_id,
+                    f"{selected_playlist_name} is already in your notify list.",
+                )
+            else:
+                if notify_playlists is None:
+                    self.database.update_notify(selected_playlist_id, self.user_id)
+                else:
+                    notify_playlists += f",{selected_playlist_id}"
+                    self.database.update_notify(notify_playlists, self.user_id)
+
+                self.bot.send_message(
+                    self.chat_id,
+                    f"{selected_playlist_name} was successfully added to your notify list!",
+                )
+
+            self.bot.answer_callback_query(call.id)
+
+    def remove_notify(self) -> None:
+        notify_list: str = self.database.get_notify(self.user_id)
+        print(notify_list)
 
     def last_played(self) -> None:
         last_played: Dict[str, any] = self.spotify.user_sp.current_user_recently_played(
@@ -412,6 +468,40 @@ class NotifyBot(threading.Thread):
                 "My creators didn't think about that one yet! <a href='https://github.com/rafacovez/notify'>is it a good idea though?</a>",
                 parse_mode="HTML",
             )
+
+    def handle_callback(self, call):
+        notify_playlists: str = self.database.get_notify(self.user_id)
+        selected_playlist_id: str = call.data
+        selected_playlist_name: str = self.spotify.user_sp.playlist(
+            selected_playlist_id
+        )["name"]
+        playlist_is_stored: bool = False
+
+        if notify_playlists is not None:
+            notify_playlists_list: List[str] = notify_playlists.split(",")
+
+            for playlist in notify_playlists_list:
+                if selected_playlist_id == playlist:
+                    playlist_is_stored = True
+
+        if playlist_is_stored:
+            self.bot.send_message(
+                self.chat_id,
+                f"{selected_playlist_name} is already in your notify list.",
+            )
+        else:
+            if notify_playlists is None:
+                self.database.update_notify(selected_playlist_id, self.user_id)
+            else:
+                notify_playlists += f",{selected_playlist_id}"
+                self.database.update_notify(notify_playlists, self.user_id)
+
+            self.bot.send_message(
+                self.chat_id,
+                f"{selected_playlist_name} was successfully added to your notify list!",
+            )
+
+        self.bot.answer_callback_query(call.id)
 
     def handle_message(self, message: Message) -> None:
         self.message: Message = message
