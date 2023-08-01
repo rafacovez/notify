@@ -1,9 +1,11 @@
 import os
 import sqlite3
 import threading
+from collections.abc import Callable, Iterable, Mapping
 from optparse import OptionParser
 from time import sleep
 from typing import *
+from typing import Any
 
 import requests
 from dotenv import load_dotenv
@@ -116,6 +118,13 @@ class Database:
             )
 
         self.process(logic)
+
+    def fetch_notify(self) -> List[int]:
+        def logic() -> List[int]:
+            self.cursor.execute("SELECT notify FROM users")
+            return [row[0] for row in self.cursor.fetchall()]
+
+        return self.process(logic)
 
     def get_notify(self, user: int) -> str:
         def logic() -> str:
@@ -701,6 +710,19 @@ class Server(threading.Thread):
             sleep(1)
 
 
+class Worker(threading.Thread):
+    def __init__(self, database: Database):
+        threading.Thread.__init__(self)
+        self.kill_received = False
+        self.database: Database = database
+        self.message = "I'm working for u!"
+
+    def run(self) -> None:
+        while not self.kill_received:
+            print(self.database.fetch_notify())
+            sleep(1)
+
+
 # configuration for script threads
 def parse_options():
     parser = OptionParser()
@@ -735,16 +757,20 @@ def main():
         database=Database(os.environ.get("NOTIFY_DB")),
     )
     server = Server(bot=bot)
+    worker = Worker(database=Database(os.environ.get("NOTIFY_DB")))
 
     for i in range(options.threadNum):
         bot_thread = bot
         server_thread = server
+        worker_thread = worker
 
         bot_thread.start()
         server_thread.start()
+        worker_thread.start()
 
         threads.append(bot_thread)
         threads.append(server_thread)
+        threads.append(worker_thread)
 
     while has_live_threads(threads):
         try:
