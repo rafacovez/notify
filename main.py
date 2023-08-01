@@ -202,7 +202,7 @@ class NotifyBot(threading.Thread):
                 "desc": "Stop tracking a playlist",
             },
             "shownotify": {
-                "func": self.add_notify,
+                "func": self.show_notify,
                 "desc": "Get a list of the playlists you're currently tracking",
             },
             "lastplayed": {
@@ -279,9 +279,6 @@ class NotifyBot(threading.Thread):
         return user_playlists
 
     def add_notify(self) -> None:
-        # TODO: code functionality to add selected playlist ID
-        # to 'notify' cell on notifydb database
-
         playlists = [
             InlineKeyboardButton(playlist["name"], callback_data=playlist["id"])
             for playlist in self.get_playlists()
@@ -333,8 +330,82 @@ class NotifyBot(threading.Thread):
             self.bot.answer_callback_query(call.id)
 
     def remove_notify(self) -> None:
-        notify_list: str = self.database.get_notify(self.user_id)
-        print(notify_list)
+        notify_playlists: str = self.database.get_notify(self.user_id)
+
+        if notify_playlists is None:
+            self.bot.send_message(
+                "You don't have any playlists on your notify list yet"
+            )
+        else:
+            notify_playlists_list: List[str] = notify_playlists.split(",")
+
+            playlists = [
+                InlineKeyboardButton(
+                    self.spotify.user_sp.playlist(playlist_id)["name"],
+                    callback_data=playlist_id,
+                )
+                for playlist_id in notify_playlists_list
+            ]
+
+            keyboard = InlineKeyboardMarkup(row_width=2)
+
+            keyboard.add(*playlists)
+
+            self.bot.send_message(
+                self.chat_id,
+                "Click on the playlist you'd like to remove from your notify list",
+                reply_markup=keyboard,
+            )
+
+            @self.bot.callback_query_handler(func=lambda call: True)
+            def handle_callback(call):
+                selected_playlist_id: str = call.data
+                selected_playlist_name: str = self.spotify.user_sp.playlist(
+                    selected_playlist_id
+                )["name"]
+                playlist_is_stored: bool = False
+
+                for playlist_id in notify_playlists_list:
+                    if selected_playlist_id == playlist_id:
+                        playlist_is_stored = True
+
+                if playlist_is_stored:
+                    notify_playlists_list.remove(selected_playlist_id)
+                    notify_playlists = ",".join(notify_playlists_list)
+
+                    self.database.update_notify(notify_playlists, self.user_id)
+
+                    self.bot.send_message(
+                        self.chat_id,
+                        f"{selected_playlist_name} was removed from your notify list.",
+                    )
+
+                    self.bot.answer_callback_query(call.id)
+                else:
+                    self.bot.send_message(
+                        "That playlist's not in your notify list yet..."
+                    )
+
+    def show_notify(self) -> None:
+        notify_playlists: str = self.database.get_notify(self.user_id)
+
+        if notify_playlists is None:
+            self.bot.send_message(
+                "You don't have any playlists in your notify list yet..."
+            )
+        else:
+            notify_playlists_list: List[str] = notify_playlists.split(",")
+            notify_playlists_message: str = ""
+
+            for playlist_id in notify_playlists_list:
+                notify_playlists_message += (
+                    f"\n- {self.spotify.user_sp.playlist(playlist_id)['name']}"
+                )
+
+            self.bot.send_message(
+                self.chat_id,
+                f"These are the playlist in your notify list:\n{notify_playlists_message}",
+            )
 
     def last_played(self) -> None:
         last_played: Dict[str, any] = self.spotify.user_sp.current_user_recently_played(
