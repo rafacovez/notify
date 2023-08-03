@@ -25,6 +25,7 @@ class Database:
         self.conn: sqlite3.Connection = None
         self.backup_conn: sqlite3.Connection = None
         self.cursor: sqlite3.Cursor = None
+        self.database_exists: bool = False
 
     def __do_nothing(self) -> None:
         pass
@@ -65,6 +66,8 @@ class Database:
             )
 
         self.process(logic)
+
+        self.database_exists = True
 
     def user_exists(self, user: int) -> bool:
         def logic() -> bool:
@@ -731,55 +734,70 @@ class Worker(threading.Thread):
 
     def run(self) -> None:
         while not self.kill_received:
-            for user in self.database.fetch_users():
-                if self.database.get_notify(user) is not None:
-                    notify_playlists: List[str] = self.database.get_notify(user).split(
-                        ","
-                    )
-                    prev_notify_snapshots: List[str] = [
-                        f"{playlist_id}:{self.spotify.sp.playlist(playlist_id)['snapshot_id']}"
-                        for playlist_id in notify_playlists
-                    ]
-
-                    while True:
-                        notify_snapshots: List[str] = [
+            if self.database.database_exists:
+                for user in self.database.fetch_users():
+                    if self.database.get_notify(user) is not None:
+                        notify_playlists: List[str] = self.database.get_notify(
+                            user
+                        ).split(",")
+                        prev_notify_snapshots: List[str] = [
                             f"{playlist_id}:{self.spotify.sp.playlist(playlist_id)['snapshot_id']}"
                             for playlist_id in notify_playlists
                         ]
 
-                        if prev_notify_snapshots != notify_snapshots:
-                            changed_playlists: Optional[List[str]] = [
-                                playlist_snapshot
-                                for playlist_snapshot in set(notify_snapshots)
-                                - set(prev_notify_snapshots)
+                        while True:
+                            notify_snapshots: List[str] = [
+                                f"{playlist_id}:{self.spotify.sp.playlist(playlist_id)['snapshot_id']}"
+                                for playlist_id in notify_playlists
                             ]
 
-                            if len(changed_playlists) > 1:
-                                changed_playlists_names = ""
-                                for playlist in changed_playlists:
-                                    changed_playlist_id = playlist.split(":")[0]
-                                    changed_playlists_names += f"\n- {self.spotify.sp.playlist(changed_playlist_id)['name']}"
+                            if prev_notify_snapshots != notify_snapshots:
+                                changed_playlists: Optional[List[str]] = [
+                                    playlist_snapshot
+                                    for playlist_snapshot in set(notify_snapshots)
+                                    - set(prev_notify_snapshots)
+                                ]
 
-                                self.telebot.send_message(
-                                    user,
-                                    f"There have been changes in the following playlists:\n{changed_playlists_names}",
-                                )
+                                if len(changed_playlists) > 1:
+                                    changed_playlists_names = ""
+                                    for playlist in changed_playlists:
+                                        changed_playlist_id = playlist.split(":")[0]
+                                        changed_playlists_names += f"\n- {self.spotify.sp.playlist(changed_playlist_id)['name']}"
 
-                            else:
-                                changed_playlist_id = changed_playlists[0].split(":")[0]
-                                changed_playlist_name = self.spotify.sp.playlist(
-                                    changed_playlist_id
-                                )["name"]
+                                    self.telebot.send_message(
+                                        user,
+                                        f"There have been changes in the following playlists:\n{changed_playlists_names}",
+                                    )
 
-                                self.telebot.send_message(
-                                    user,
-                                    f"There has been a change in {changed_playlist_name}!",
-                                )
+                                else:
+                                    changed_playlist_id = changed_playlists[0].split(
+                                        ":"
+                                    )[0]
+                                    changed_playlist_name = self.spotify.sp.playlist(
+                                        changed_playlist_id
+                                    )["name"]
 
-                        prev_notify_snapshots = notify_snapshots
+                                    # TODO: get previous tracks and compare them with new generated ones
+                                    # from each notify playlist to tell the user which song was added or removed
 
-                        sleep(2)
-                sleep(2)
+                                    # changed_playlist_tracks = [
+                                    #     track["track"]["name"]
+                                    #     for track in self.spotify.sp.playlist_tracks(
+                                    #         changed_playlist_id
+                                    #     )["items"]
+                                    # ]
+                                    #
+                                    # print(changed_playlist_tracks)
+
+                                    self.telebot.send_message(
+                                        user,
+                                        f"There has been a change in {changed_playlist_name}!",
+                                    )
+
+                            prev_notify_snapshots = notify_snapshots
+
+                            sleep(2)
+                    sleep(2)
 
 
 # configuration for script threads
