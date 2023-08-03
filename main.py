@@ -343,10 +343,6 @@ class NotifyBot(threading.Thread):
         return user_playlists
 
     def add_notify(self) -> None:
-        # FIXME: tried this chat gpt code to use callback queries separately,
-        # but I don't have direct access to a "call" value on "add_notify"
-        # or remove_notify, I need to get this direct value or look for other alternative
-
         if len(self.get_user_playlists()) > 0:
             self.current_action = "add_notify"
 
@@ -372,7 +368,6 @@ class NotifyBot(threading.Thread):
             )
 
     def handle_add_notify_callback(self, call):
-        print("ADDING")
         selected_playlist_id: str = call.data
         selected_playlist_name: str = self.spotify.sp.playlist(selected_playlist_id)[
             "name"
@@ -415,10 +410,6 @@ class NotifyBot(threading.Thread):
         self.bot.answer_callback_query(call.id)
 
     def remove_notify(self) -> None:
-        # FIXME: tried this chat gpt code to use callback queries separately,
-        # but I don't have direct access to a "call" value on "add_notify"
-        # or remove_notify, I need to get this direct value or look for other alternative
-
         self.current_action = "remove_notify"
 
         if self.database.get_notify(self.user_id) is not None:
@@ -450,7 +441,6 @@ class NotifyBot(threading.Thread):
             )
 
     def handle_remove_notify_callback(self, call):
-        print("REMOVING")
         selected_playlist_id: str = call.data
         selected_playlist_name: str = self.spotify.sp.playlist(selected_playlist_id)[
             "name"
