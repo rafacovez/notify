@@ -119,9 +119,9 @@ class Database:
 
         self.process(logic)
 
-    def fetch_notify(self) -> List[int]:
+    def fetch_users(self) -> List[int]:
         def logic() -> List[int]:
-            self.cursor.execute("SELECT notify FROM users")
+            self.cursor.execute("SELECT telegram_user_id FROM users")
             return [row[0] for row in self.cursor.fetchall()]
 
         return self.process(logic)
@@ -182,11 +182,15 @@ class NotifyBot(threading.Thread):
         self.kill_received = False
         self.bot_token: str = bot_token
         self.bot: TeleBot = TeleBot(self.bot_token)
+        self.current_action: Optional[str] = None
         self.database: Database = database
         self.spotify: SpotifyHandler = spotify
         self.message: Optional[Message] = None
         self.user_id: Optional[int] = None
         self.chat_id: Optional[int] = None
+        self.bot.register_callback_query_handler(
+            self.message, self.handle_callback_query
+        )
         self.bot.register_message_handler(self.handle_message)
         self.commands: Dict[str, Dict[str, Union[Callable[..., Any], str]]] = {
             "start": {"func": self.help, "desc": "Starts Notify"},
@@ -239,6 +243,57 @@ class NotifyBot(threading.Thread):
     def __do_nothing(self) -> None:
         pass
 
+    def handle_message(self, message: Message) -> None:
+        self.message: Message = message
+        self.user_id: int = self.message.from_user.id
+        self.chat_id: int = self.message.chat.id
+
+        self.bot.send_chat_action(self.chat_id, "typing")
+
+        if message.content_type == "text" and message.text.strip().startswith("/"):
+            self.determine_function()
+
+        else:
+            self.bot.send_message(self.chat_id, "Sorry, I only speak commands...")
+
+    def handle_callback_query(self, call) -> None:
+        if self.current_action == "add_notify":
+            self.handle_add_notify_callback(call)
+        elif self.current_action == "remove_notify":
+            self.handle_remove_notify_callback(call)
+
+    def determine_function(self) -> None:
+        command: str = self.message.text
+        command_exists: bool = False
+
+        for command_item in self.command_list:
+            if command == command_item.command:
+                command_exists = True
+                self.database.create_users_table()
+
+                if self.database.user_exists(self.user_id):
+                    self.spotify.refresh_token = self.database.get_refresh_token(
+                        self.user_id
+                    )
+                    self.spotify.access_token = self.spotify.refresh_access_token()
+                    self.database.store_access_token(
+                        self.spotify.access_token, self.user_id
+                    )
+                    self.spotify.user_sp = Spotify(auth=self.spotify.access_token)
+                    command_func: function = self.commands[
+                        command_item.command.strip("/")
+                    ]["func"]
+                    command_func()
+                else:
+                    self.auth_user()
+
+        if not command_exists:
+            self.bot.send_message(
+                self.chat_id,
+                "My creators didn't think about that one yet! <a href='https://github.com/rafacovez/notify'>is it a good idea though?</a>",
+                parse_mode="HTML",
+            )
+
     def auth_user(self) -> None:
         if self.database.user_exists(self.user_id):
             self.bot.send_message(self.chat_id, "You're already logged in.")
@@ -270,15 +325,15 @@ class NotifyBot(threading.Thread):
             f"You can try one of these commands out: \n{commands}",
         )
 
-    def get_playlists(self) -> List[Dict[str, any]]:
+    def get_user_playlists(self) -> Optional[List[Dict[str, any]]]:
         offset: int = 0
-        user_playlists: List[Dict[str, any]] = []
+        user_playlists: Optional[List[Dict[str, any]]] = []
 
         while True:
             response: Dict[str, any] = self.spotify.user_sp.current_user_playlists(
                 offset=offset
             )
-            fetched_playlists: List[Dict[str, any]] = response["items"]
+            fetched_playlists: Optional[List[Dict[str, any]]] = response["items"]
             user_playlists += fetched_playlists
             offset += len(fetched_playlists)
 
@@ -288,65 +343,88 @@ class NotifyBot(threading.Thread):
         return user_playlists
 
     def add_notify(self) -> None:
-        playlists = [
-            InlineKeyboardButton(playlist["name"], callback_data=playlist["id"])
-            for playlist in self.get_playlists()
+        # FIXME: tried this chat gpt code to use callback queries separately,
+        # but I don't have direct access to a "call" value on "add_notify"
+        # or remove_notify, I need to get this direct value or look for other alternative
+
+        if len(self.get_user_playlists()) > 0:
+            self.current_action = "add_notify"
+
+            playlists = [
+                InlineKeyboardButton(playlist["name"], callback_data=playlist["id"])
+                for playlist in self.get_user_playlists()
+            ]
+
+            keyboard = InlineKeyboardMarkup(row_width=2)
+
+            keyboard.add(*playlists)
+
+            self.bot.send_message(
+                self.chat_id,
+                "Click on the playlist you'd like to get notified about.",
+                reply_markup=keyboard,
+            )
+
+        else:
+            self.bot.send_message(
+                self.chat_id,
+                "You don't seem to have any playlists in your library yet...",
+            )
+
+    def handle_add_notify_callback(self, call):
+        print("ADDING")
+        selected_playlist_id: str = call.data
+        selected_playlist_name: str = self.spotify.sp.playlist(selected_playlist_id)[
+            "name"
         ]
+        playlist_is_stored: bool = False
+        limit_was_reached: bool = False
 
-        keyboard = InlineKeyboardMarkup(row_width=2)
+        if self.database.get_notify(self.user_id) is not None:
+            notify_playlists: List[str] = self.database.get_notify(self.user_id)
+            notify_playlists_list: List[str] = notify_playlists.split(",")
 
-        keyboard.add(*playlists)
+            for playlist_id in notify_playlists_list:
+                if selected_playlist_id == playlist_id:
+                    playlist_is_stored = True
 
-        self.bot.send_message(
-            self.chat_id,
-            "Click on the playlist you'd like to get notified about",
-            reply_markup=keyboard,
-        )
-
-        @self.bot.callback_query_handler(func=lambda call: True)
-        def handle_callback(call):
-            notify_playlists: str = self.database.get_notify(self.user_id)
-            selected_playlist_id: str = call.data
-            selected_playlist_name: str = self.spotify.user_sp.playlist(
-                selected_playlist_id
-            )["name"]
-            playlist_is_stored: bool = False
-
-            if notify_playlists is not None:
-                notify_playlists_list: List[str] = notify_playlists.split(",")
-
-                for playlist in notify_playlists_list:
-                    if selected_playlist_id == playlist:
-                        playlist_is_stored = True
+            if len(notify_playlists_list) > 2:
+                limit_was_reached = True
 
             if playlist_is_stored:
                 self.bot.send_message(
                     self.chat_id,
                     f"{selected_playlist_name} is already in your notify list.",
                 )
+            elif limit_was_reached:
+                self.bot.send_message(
+                    self.chat_id,
+                    "Sorry, but you can't have more than 3 playlists in your notify list at a time...",
+                )
             else:
-                if notify_playlists is None:
-                    self.database.update_notify(selected_playlist_id, self.user_id)
-                else:
-                    notify_playlists += f",{selected_playlist_id}"
-                    self.database.update_notify(notify_playlists, self.user_id)
-
+                notify_playlists += f",{selected_playlist_id}"
+                self.database.update_notify(notify_playlists, self.user_id)
                 self.bot.send_message(
                     self.chat_id,
                     f"{selected_playlist_name} was successfully added to your notify list!",
                 )
 
-            self.bot.answer_callback_query(call.id)
+        else:
+            self.database.update_notify(selected_playlist_id, self.user_id)
+
+        self.bot.answer_callback_query(call.id)
 
     def remove_notify(self) -> None:
-        notify_playlists: str = self.database.get_notify(self.user_id)
+        # FIXME: tried this chat gpt code to use callback queries separately,
+        # but I don't have direct access to a "call" value on "add_notify"
+        # or remove_notify, I need to get this direct value or look for other alternative
 
-        if notify_playlists is None:
-            self.bot.send_message(
-                "You don't have any playlists on your notify list yet"
-            )
-        else:
-            notify_playlists_list: List[str] = notify_playlists.split(",")
+        self.current_action = "remove_notify"
+
+        if self.database.get_notify(self.user_id) is not None:
+            notify_playlists_list: List[str] = self.database.get_notify(
+                self.user_id
+            ).split(",")
 
             playlists = [
                 InlineKeyboardButton(
@@ -362,48 +440,61 @@ class NotifyBot(threading.Thread):
 
             self.bot.send_message(
                 self.chat_id,
-                "Click on the playlist you'd like to remove from your notify list",
+                "Click on the playlist you'd like to remove from your notify list.",
                 reply_markup=keyboard,
             )
 
-            @self.bot.callback_query_handler(func=lambda call: True)
-            def handle_callback(call):
-                selected_playlist_id: str = call.data
-                selected_playlist_name: str = self.spotify.user_sp.playlist(
-                    selected_playlist_id
-                )["name"]
-                playlist_is_stored: bool = False
+        else:
+            self.bot.send_message(
+                self.chat_id, "You don't have any playlist in your notify list yet..."
+            )
 
-                for playlist_id in notify_playlists_list:
-                    if selected_playlist_id == playlist_id:
-                        playlist_is_stored = True
+    def handle_remove_notify_callback(self, call):
+        print("REMOVING")
+        selected_playlist_id: str = call.data
+        selected_playlist_name: str = self.spotify.sp.playlist(selected_playlist_id)[
+            "name"
+        ]
+        playlist_is_stored: bool = False
 
-                if playlist_is_stored:
-                    notify_playlists_list.remove(selected_playlist_id)
-                    notify_playlists = ",".join(notify_playlists_list)
+        if self.database.get_notify(self.user_id) is not None:
+            notify_playlists: List[str] = self.database.get_notify(self.user_id)
+            notify_playlists_list: List[str] = notify_playlists.split(",")
 
-                    self.database.update_notify(notify_playlists, self.user_id)
+            for playlist_id in notify_playlists_list:
+                if selected_playlist_id == playlist_id:
+                    playlist_is_stored = True
 
-                    self.bot.send_message(
-                        self.chat_id,
-                        f"{selected_playlist_name} was removed from your notify list.",
-                    )
+            if playlist_is_stored:
+                notify_playlists_list.remove(selected_playlist_id)
 
-                    self.bot.answer_callback_query(call.id)
-                else:
-                    self.bot.send_message(
-                        "That playlist's not in your notify list yet..."
-                    )
+                notify_playlists = ",".join(notify_playlists_list)
+
+                self.database.update_notify(notify_playlists, self.user_id)
+
+                self.bot.send_message(
+                    self.chat_id,
+                    f"{selected_playlist_name} was removed from your notify list.",
+                )
+            else:
+                self.bot.send_message(
+                    self.chat_id,
+                    "That playlists not in your notify list anymore...",
+                )
+
+        else:
+            self.bot.send_message(
+                self.chat_id,
+                "You don't have any playlist in your notify list yet...",
+            )
+
+        self.bot.answer_callback_query(call.id)
 
     def show_notify(self) -> None:
-        notify_playlists: str = self.database.get_notify(self.user_id)
-
-        if notify_playlists is None:
-            self.bot.send_message(
-                "You don't have any playlists in your notify list yet..."
-            )
-        else:
-            notify_playlists_list: List[str] = notify_playlists.split(",")
+        if self.database.get_notify(self.user_id) is not None:
+            notify_playlists_list: List[str] = self.database.get_notify(
+                self.user_id
+            ).split(",")
             notify_playlists_message: str = ""
 
             for playlist_id in notify_playlists_list:
@@ -414,6 +505,11 @@ class NotifyBot(threading.Thread):
             self.bot.send_message(
                 self.chat_id,
                 f"These are the playlist in your notify list:\n{notify_playlists_message}",
+            )
+
+        else:
+            self.bot.send_message(
+                self.chat_id, "You don't have any playlists in your notify list yet..."
             )
 
     def last_played(self) -> None:
@@ -434,7 +530,7 @@ class NotifyBot(threading.Thread):
         )
 
     def retrieve_playlists(self) -> None:
-        playlists = self.get_playlists()
+        playlists = self.get_user_playlists()
 
         playlist_names: List[str] = [playlist["name"] for playlist in playlists]
         playlist_urls: List[str] = [
@@ -516,85 +612,6 @@ class NotifyBot(threading.Thread):
             f"❤ You might like these tracks I found for you:\n{recommended_message}",
             parse_mode="HTML",
         )
-
-    def determine_function(self) -> None:
-        command: str = self.message.text
-        command_exists: bool = False
-
-        for command_item in self.command_list:
-            if command == command_item.command:
-                command_exists = True
-                self.database.create_users_table()
-
-                if self.database.user_exists(self.user_id):
-                    self.spotify.refresh_token = self.database.get_refresh_token(
-                        self.user_id
-                    )
-                    self.spotify.access_token = self.spotify.refresh_access_token()
-                    self.database.store_access_token(
-                        self.spotify.access_token, self.user_id
-                    )
-                    self.spotify.user_sp = Spotify(auth=self.spotify.access_token)
-                    command_func: function = self.commands[
-                        command_item.command.strip("/")
-                    ]["func"]
-                    command_func()
-                else:
-                    self.auth_user()
-
-        if not command_exists:
-            self.bot.send_message(
-                self.chat_id,
-                "My creators didn't think about that one yet! <a href='https://github.com/rafacovez/notify'>is it a good idea though?</a>",
-                parse_mode="HTML",
-            )
-
-    def handle_callback(self, call):
-        notify_playlists: str = self.database.get_notify(self.user_id)
-        selected_playlist_id: str = call.data
-        selected_playlist_name: str = self.spotify.user_sp.playlist(
-            selected_playlist_id
-        )["name"]
-        playlist_is_stored: bool = False
-
-        if notify_playlists is not None:
-            notify_playlists_list: List[str] = notify_playlists.split(",")
-
-            for playlist in notify_playlists_list:
-                if selected_playlist_id == playlist:
-                    playlist_is_stored = True
-
-        if playlist_is_stored:
-            self.bot.send_message(
-                self.chat_id,
-                f"{selected_playlist_name} is already in your notify list.",
-            )
-        else:
-            if notify_playlists is None:
-                self.database.update_notify(selected_playlist_id, self.user_id)
-            else:
-                notify_playlists += f",{selected_playlist_id}"
-                self.database.update_notify(notify_playlists, self.user_id)
-
-            self.bot.send_message(
-                self.chat_id,
-                f"{selected_playlist_name} was successfully added to your notify list!",
-            )
-
-        self.bot.answer_callback_query(call.id)
-
-    def handle_message(self, message: Message) -> None:
-        self.message: Message = message
-        self.user_id: int = self.message.from_user.id
-        self.chat_id: int = self.message.chat.id
-
-        self.bot.send_chat_action(self.chat_id, "typing")
-
-        if message.content_type == "text" and message.text.strip().startswith("/"):
-            self.determine_function()
-
-        else:
-            self.bot.send_message(self.chat_id, "Sorry, I only speak commands...")
 
     def start_listening(self) -> None:
         try:
@@ -711,16 +728,68 @@ class Server(threading.Thread):
 
 
 class Worker(threading.Thread):
-    def __init__(self, database: Database):
+    def __init__(
+        self,
+        bot: NotifyBot = NotifyBot,
+    ):
         threading.Thread.__init__(self)
         self.kill_received = False
-        self.database: Database = database
-        self.message = "I'm working for u!"
+        self.bot: NotifyBot = bot
+        self.telebot: TeleBot = TeleBot(self.bot.bot_token)
+        self.database: Database = self.bot.database
+        self.spotify: SpotifyHandler = self.bot.spotify
 
     def run(self) -> None:
         while not self.kill_received:
-            print(self.database.fetch_notify())
-            sleep(1)
+            for user in self.database.fetch_users():
+                if self.database.get_notify(user) is not None:
+                    notify_playlists: List[str] = self.database.get_notify(user).split(
+                        ","
+                    )
+                    prev_notify_snapshots: List[str] = [
+                        f"{playlist_id}:{self.spotify.sp.playlist(playlist_id)['snapshot_id']}"
+                        for playlist_id in notify_playlists
+                    ]
+
+                    while True:
+                        notify_snapshots: List[str] = [
+                            f"{playlist_id}:{self.spotify.sp.playlist(playlist_id)['snapshot_id']}"
+                            for playlist_id in notify_playlists
+                        ]
+
+                        if prev_notify_snapshots != notify_snapshots:
+                            changed_playlists: Optional[List[str]] = [
+                                playlist_snapshot
+                                for playlist_snapshot in set(notify_snapshots)
+                                - set(prev_notify_snapshots)
+                            ]
+
+                            if len(changed_playlists) > 1:
+                                changed_playlists_names = ""
+                                for playlist in changed_playlists:
+                                    changed_playlist_id = playlist.split(":")[0]
+                                    changed_playlists_names += f"\n- {self.spotify.sp.playlist(changed_playlist_id)['name']}"
+
+                                self.telebot.send_message(
+                                    user,
+                                    f"There have been changes in the following playlists:\n{changed_playlists_names}",
+                                )
+
+                            else:
+                                changed_playlist_id = changed_playlists[0].split(":")[0]
+                                changed_playlist_name = self.spotify.sp.playlist(
+                                    changed_playlist_id
+                                )["name"]
+
+                                self.telebot.send_message(
+                                    user,
+                                    f"There has been a change in {changed_playlist_name}!",
+                                )
+
+                        prev_notify_snapshots = notify_snapshots
+
+                        sleep(2)
+                sleep(2)
 
 
 # configuration for script threads
@@ -757,7 +826,7 @@ def main():
         database=Database(os.environ.get("NOTIFY_DB")),
     )
     server = Server(bot=bot)
-    worker = Worker(database=Database(os.environ.get("NOTIFY_DB")))
+    worker = Worker(bot=bot)
 
     for i in range(options.threadNum):
         bot_thread = bot
