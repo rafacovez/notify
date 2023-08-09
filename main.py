@@ -378,7 +378,14 @@ class NotifyBot(threading.Thread):
         playlist_is_stored: bool = False
         limit_was_reached: bool = False
 
-        if self.database.get_notify(self.user_id) is not None:
+        if self.database.get_notify(self.user_id) in ["", None]:
+            self.database.update_notify(selected_playlist_id, self.user_id)
+            self.bot.send_message(
+                self.chat_id,
+                f"{selected_playlist_name} was successfully added to your notify list!",
+            )
+
+        else:
             notify_playlists: List[str] = self.database.get_notify(self.user_id)
             notify_playlists_list: List[str] = notify_playlists.split(",")
 
@@ -407,15 +414,17 @@ class NotifyBot(threading.Thread):
                     f"{selected_playlist_name} was successfully added to your notify list!",
                 )
 
-        else:
-            self.database.update_notify(selected_playlist_id, self.user_id)
-
         self.bot.answer_callback_query(call.id)
 
     def remove_notify(self) -> None:
         self.current_action = "remove_notify"
 
-        if self.database.get_notify(self.user_id) is not None:
+        if self.database.get_notify(self.user_id) in ["", None]:
+            self.bot.send_message(
+                self.chat_id, "You don't have any playlist in your notify list yet..."
+            )
+
+        else:
             notify_playlists_list: List[str] = self.database.get_notify(
                 self.user_id
             ).split(",")
@@ -438,11 +447,6 @@ class NotifyBot(threading.Thread):
                 reply_markup=keyboard,
             )
 
-        else:
-            self.bot.send_message(
-                self.chat_id, "You don't have any playlist in your notify list yet..."
-            )
-
     def handle_remove_notify_callback(self, call):
         selected_playlist_id: str = call.data
         selected_playlist_name: str = self.spotify.sp.playlist(selected_playlist_id)[
@@ -450,7 +454,13 @@ class NotifyBot(threading.Thread):
         ]
         playlist_is_stored: bool = False
 
-        if self.database.get_notify(self.user_id) is not None:
+        if self.database.get_notify(self.user_id) in ["", None]:
+            self.bot.send_message(
+                self.chat_id,
+                "You don't have any playlist in your notify list yet...",
+            )
+
+        else:
             notify_playlists: List[str] = self.database.get_notify(self.user_id)
             notify_playlists_list: List[str] = notify_playlists.split(",")
 
@@ -475,16 +485,15 @@ class NotifyBot(threading.Thread):
                     "That playlists not in your notify list anymore...",
                 )
 
-        else:
-            self.bot.send_message(
-                self.chat_id,
-                "You don't have any playlist in your notify list yet...",
-            )
-
         self.bot.answer_callback_query(call.id)
 
     def show_notify(self) -> None:
-        if self.database.get_notify(self.user_id) is not None:
+        if self.database.get_notify(self.user_id) in ["", None]:
+            self.bot.send_message(
+                self.chat_id, "You don't have any playlists in your notify list yet..."
+            )
+
+        else:
             notify_playlists_list: List[str] = self.database.get_notify(
                 self.user_id
             ).split(",")
@@ -498,11 +507,6 @@ class NotifyBot(threading.Thread):
             self.bot.send_message(
                 self.chat_id,
                 f"These are the playlist in your notify list:\n{notify_playlists_message}",
-            )
-
-        else:
-            self.bot.send_message(
-                self.chat_id, "You don't have any playlists in your notify list yet..."
             )
 
     def last_played(self) -> None:
@@ -720,86 +724,6 @@ class Server(threading.Thread):
             sleep(1)
 
 
-class Worker(threading.Thread):
-    def __init__(
-        self,
-        bot: NotifyBot = NotifyBot,
-    ):
-        threading.Thread.__init__(self)
-        self.kill_received = False
-        self.bot: NotifyBot = bot
-        self.telebot: TeleBot = TeleBot(self.bot.bot_token)
-        self.database: Database = self.bot.database
-        self.spotify: SpotifyHandler = self.bot.spotify
-
-    def run(self) -> None:
-        while not self.kill_received:
-            if self.database.database_exists:
-                for user in self.database.fetch_users():
-                    if self.database.get_notify(user) is not None:
-                        notify_playlists: List[str] = self.database.get_notify(
-                            user
-                        ).split(",")
-                        prev_notify_snapshots: List[str] = [
-                            f"{playlist_id}:{self.spotify.sp.playlist(playlist_id)['snapshot_id']}"
-                            for playlist_id in notify_playlists
-                        ]
-
-                        while True:
-                            notify_snapshots: List[str] = [
-                                f"{playlist_id}:{self.spotify.sp.playlist(playlist_id)['snapshot_id']}"
-                                for playlist_id in notify_playlists
-                            ]
-
-                            if prev_notify_snapshots != notify_snapshots:
-                                changed_playlists: Optional[List[str]] = [
-                                    playlist_snapshot
-                                    for playlist_snapshot in set(notify_snapshots)
-                                    - set(prev_notify_snapshots)
-                                ]
-
-                                if len(changed_playlists) > 1:
-                                    changed_playlists_names = ""
-                                    for playlist in changed_playlists:
-                                        changed_playlist_id = playlist.split(":")[0]
-                                        changed_playlists_names += f"\n- {self.spotify.sp.playlist(changed_playlist_id)['name']}"
-
-                                    self.telebot.send_message(
-                                        user,
-                                        f"There have been changes in the following playlists:\n{changed_playlists_names}",
-                                    )
-
-                                else:
-                                    changed_playlist_id = changed_playlists[0].split(
-                                        ":"
-                                    )[0]
-                                    changed_playlist_name = self.spotify.sp.playlist(
-                                        changed_playlist_id
-                                    )["name"]
-
-                                    # TODO: get previous tracks and compare them with new generated ones
-                                    # from each notify playlist to tell the user which song was added or removed
-
-                                    # changed_playlist_tracks = [
-                                    #     track["track"]["name"]
-                                    #     for track in self.spotify.sp.playlist_tracks(
-                                    #         changed_playlist_id
-                                    #     )["items"]
-                                    # ]
-                                    #
-                                    # print(changed_playlist_tracks)
-
-                                    self.telebot.send_message(
-                                        user,
-                                        f"There has been a change in {changed_playlist_name}!",
-                                    )
-
-                            prev_notify_snapshots = notify_snapshots
-
-                            sleep(2)
-                    sleep(2)
-
-
 # configuration for script threads
 def parse_options():
     parser = OptionParser()
@@ -834,20 +758,16 @@ def main():
         database=Database(os.environ.get("NOTIFY_DB")),
     )
     server = Server(bot=bot)
-    worker = Worker(bot=bot)
 
     for i in range(options.threadNum):
         bot_thread = bot
         server_thread = server
-        worker_thread = worker
 
         bot_thread.start()
         server_thread.start()
-        worker_thread.start()
 
         threads.append(bot_thread)
         threads.append(server_thread)
-        threads.append(worker_thread)
 
     while has_live_threads(threads):
         try:
