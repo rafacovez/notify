@@ -743,7 +743,7 @@ class Worker(threading.Thread):
                 os.environ.get("NOTIFY_DB")
             ) and self.database.fetch_users() not in [None, []]:
                 for user in self.database.fetch_users():
-                    if self.database.get_notify(user) is not None:
+                    if self.database.get_notify(user) not in [None, ""]:
                         notify_playlists: List[str] = self.database.get_notify(
                             user
                         ).split(",")
@@ -804,7 +804,7 @@ class Worker(threading.Thread):
                             prev_notify_snapshots = notify_snapshots
 
                             sleep(1)
-                sleep(1)
+            sleep(1)
 
 
 # configuration for script threads
