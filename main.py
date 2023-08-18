@@ -212,15 +212,15 @@ class NotifyBot(threading.Thread):
                 "desc": "Permanently deletes your data from Notify",
             },
             "notify": {
-                "func": self.disclaimer,
+                "func": self.under_development,
                 "desc": "Start tracking a playlist to get notified when someone else adds or removes a song from it",
             },
             "removenotify": {
-                "func": self.disclaimer,
+                "func": self.under_development,
                 "desc": "Stop tracking a playlist",
             },
             "shownotify": {
-                "func": self.disclaimer,
+                "func": self.under_development,
                 "desc": "Get a list of the playlists you're currently tracking",
             },
             "lastplayed": {
@@ -228,7 +228,7 @@ class NotifyBot(threading.Thread):
                 "desc": "Get the last song you played",
             },
             "playlists": {
-                "func": self.retrieve_playlists,
+                "func": self.disabled,
                 "desc": "Get a list of the playlists you own",
             },
             "topten": {
@@ -320,10 +320,16 @@ class NotifyBot(threading.Thread):
         else:
             self.bot.send_message(self.chat_id, "You're not logged in yet...")
 
-    def disclaimer(self) -> None:
+    def under_development(self) -> None:
         self.bot.send_message(
             self.chat_id,
-            "This feature is being worked on by my developers... Try it again later!",
+            "This feature is still under development... Try it again later!",
+        )
+
+    def disabled(self) -> None:
+        self.bot.send_message(
+            self.chat_id,
+            "This command is temporarily disabled... Try it again later!",
         )
 
     def help(self) -> None:
@@ -340,16 +346,17 @@ class NotifyBot(threading.Thread):
         offset: int = 0
         user_playlists: Optional[List[Dict[str, any]]] = []
 
-        while True:
-            response: Dict[str, any] = self.spotify.user_sp.current_user_playlists(
-                offset=offset
-            )
-            fetched_playlists: Optional[List[Dict[str, any]]] = response["items"]
-            user_playlists += fetched_playlists
-            offset += len(fetched_playlists)
+        response: Dict[str, any] = self.spotify.user_sp.current_user_playlists(
+            offset=offset
+        )
+        fetched_playlists: Optional[List[Dict[str, any]]] = response["items"]
+        user_playlists += fetched_playlists
+        offset += len(fetched_playlists)
 
-            if len(fetched_playlists) < 50:
-                break
+        if len(fetched_playlists) < 50:
+            self.bot.send_message(
+                self.chat_id, "Apparently, you have more than 50 playlists... "
+            )
 
         return user_playlists
 
