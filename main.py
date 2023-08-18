@@ -212,15 +212,15 @@ class NotifyBot(threading.Thread):
                 "desc": "Permanently deletes your data from Notify",
             },
             "notify": {
-                "func": self.add_notify,
+                "func": self.disclaimer,
                 "desc": "Start tracking a playlist to get notified when someone else adds or removes a song from it",
             },
             "removenotify": {
-                "func": self.remove_notify,
+                "func": self.disclaimer,
                 "desc": "Stop tracking a playlist",
             },
             "shownotify": {
-                "func": self.show_notify,
+                "func": self.disclaimer,
                 "desc": "Get a list of the playlists you're currently tracking",
             },
             "lastplayed": {
@@ -320,6 +320,12 @@ class NotifyBot(threading.Thread):
         else:
             self.bot.send_message(self.chat_id, "You're not logged in yet...")
 
+    def disclaimer(self) -> None:
+        self.bot.send_message(
+            self.chat_id,
+            "This feature is being worked on by my developers... Try it again later!",
+        )
+
     def help(self) -> None:
         commands: str = ""
         for command_item in self.command_list:
@@ -347,6 +353,9 @@ class NotifyBot(threading.Thread):
 
         return user_playlists
 
+    # TODO: study how this functions work after worker refactory
+
+    """
     def add_notify(self) -> None:
         if len(self.get_user_playlists()) > 0:
             self.current_action = "add_notify"
@@ -510,6 +519,7 @@ class NotifyBot(threading.Thread):
                 self.chat_id,
                 f"These are the playlist in your notify list:\n{notify_playlists_message}",
             )
+    """
 
     def last_played(self) -> None:
         last_played: Dict[str, any] = self.spotify.user_sp.current_user_recently_played(
@@ -628,9 +638,9 @@ class NotifyBot(threading.Thread):
 class Server(threading.Thread):
     def __init__(
         self,
+        bot: NotifyBot,
         redirect_host: str = os.environ.get("REDIRECT_HOST"),
         redirect_port: str = os.environ.get("REDIRECT_PORT"),
-        bot: NotifyBot = NotifyBot,
     ) -> None:
         threading.Thread.__init__(self)
         self.kill_received = False
@@ -725,6 +735,10 @@ class Server(threading.Thread):
             sleep(1)
 
 
+# FIXME: optimize this code for it to use less resources and
+# be faster, I'm sure there's a better approach...
+
+"""
 class Worker(threading.Thread):
     def __init__(
         self,
@@ -732,13 +746,15 @@ class Worker(threading.Thread):
     ):
         threading.Thread.__init__(self)
         self.kill_received = False
-        self.notify: TeleBot = notify
+        self.notify: NotifyBot = notify
         self.database: Database = self.notify.database
         self.sp: Spotify = self.notify.spotify.sp
         self.bot: TeleBot = self.notify.bot
 
     def run(self) -> None:
         while not self.kill_received:
+            print("Tracking Notify lists!")
+
             if os.path.isfile(
                 os.environ.get("NOTIFY_DB")
             ) and self.database.fetch_users() not in [None, []]:
@@ -751,6 +767,8 @@ class Worker(threading.Thread):
                             f"{playlist_id}:{self.sp.playlist(playlist_id)['snapshot_id']}"
                             for playlist_id in notify_playlists
                         ]
+
+                        print(f"The user notify playlists are: {notify_playlists}")
 
                         while True:
                             notify_snapshots: List[str] = [
@@ -803,8 +821,9 @@ class Worker(threading.Thread):
 
                             prev_notify_snapshots = notify_snapshots
 
-                            sleep(1)
-            sleep(1)
+                            sleep(2)
+            sleep(2)
+"""
 
 
 # configuration for script threads
@@ -842,21 +861,17 @@ def main():
         database=database_handler,
         spotify=spotify_handler,
     )
-    server = Server(bot=bot)
-    worker = Worker(bot)
+    server = Server(bot)
 
     for i in range(options.threadNum):
         bot_thread = bot
         server_thread = server
-        worker_thread = worker
 
         bot_thread.start()
         server_thread.start()
-        worker_thread.start()
 
         threads.append(bot_thread)
         threads.append(server_thread)
-        threads.append(worker_thread)
 
     while has_live_threads(threads):
         try:
