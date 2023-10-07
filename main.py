@@ -731,7 +731,7 @@ class Server(threading.Thread):
     def start_listening(self) -> None:
         try:
             print(f"Server is up and running!")
-            self.app.run(host=self.redirect_host, port=self.redirect_port)
+            self.app.run()
 
         except Exception as e:
             print(f"Error trying to run server: {e}")
