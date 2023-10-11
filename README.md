@@ -13,7 +13,7 @@ Notify is a Telegram bot that allows you to manage your playlist notifications a
 
 ## Getting Started
 
-To use the bot, you can eithers start a conversation with [Notify Bot](https://t.me/playlistNotificationBot) link or by searching for `playlistNotificationBot` in your Telegram app search bar.
+To use the bot, you can either start a conversation with [Notify Bot](https://t.me/playlistNotificationBot) link or by searching for `playlistNotificationBot` in your Telegram app search bar.
 
 ## Dependencies
 
@@ -22,13 +22,13 @@ This project is built using the following libraries and tools:
 - [Telebot](https://github.com/eternnoir/pyTelegramBotAPI) - A Python wrapper for the Telegram Bot API.
 - [Spotipy](https://spotipy.readthedocs.io/) - A lightweight Python library for the Spotify Web API.
 - [sqlite3](https://docs.python.org/3/library/sqlite3.html) - A built-in Python module for working with SQLite databases.
-- [Oracle](https://www.oracle.com/database/) - A powerful relational database management system used for server-side operations.
+- [DigitalOcean](https://www.digitalocean.com) - A cloud infrastructure provider used for server-side operations.
 
 ## Contributing
 
-Contributions to this project are welcome and an issues list is available. If you're interested in contributing, please follow these guidelines:
+Contributions to this project are welcome, and an issues list is available. If you're interested in contributing, please follow these guidelines:
 
-1. Fork the repository and create your own branch.
+1. Fork the repository and create your branch.
 2. Make your changes and ensure they adhere to the code style and best practices.
 3. Write clear and concise commit messages.
 4. Test your changes thoroughly.
@@ -45,6 +45,6 @@ Here are some resources to help you get started:
 - [Telegram Bot API Documentation](https://core.telegram.org/bots/api)
 - [Spotipy Documentation](https://spotipy.readthedocs.io/en/latest/)
 - [SQLite Documentation](https://www.sqlite.org/docs.html)
-- [Oracle Documentation](https://docs.oracle.com/en/database/)
+- [DigitalOcean Documentation](https://www.digitalocean.com/docs/)
 
 If you have any questions or need assistance, feel free to reach out.

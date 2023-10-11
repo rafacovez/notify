@@ -588,6 +588,30 @@ class NotifyBot(threading.Thread):
         )
 
     def recommended(self) -> None:
+        # TODO: create loops to increment known_tracks data to filter through and
+        # create a loop to complete recommended tracks list to 10 if any track is actually removed
+
+        recently_played: List[str] = [
+            track["track"]["id"]
+            for track in self.spotify.user_sp.current_user_recently_played(limit=50)[
+                "items"
+            ]
+        ]
+        liked_tracks: List[str] = [
+            track["track"]["id"]
+            for track in self.spotify.user_sp.current_user_saved_tracks(limit=20)[
+                "items"
+            ]
+        ]
+        favorite_tracks: List[str] = [
+            track["id"]
+            for track in self.spotify.user_sp.current_user_top_tracks(
+                limit=20, time_range="short_term"
+            )["items"]
+        ]
+
+        known_tracks: List[str] = recently_played + liked_tracks + favorite_tracks
+
         top_five_artists: Dict[
             str, any
         ] = self.spotify.user_sp.current_user_top_artists(
@@ -597,10 +621,15 @@ class NotifyBot(threading.Thread):
         ]
         seed_artists: List[int] = [artist["id"] for artist in top_five_artists]
 
-        recommended: Dict[str, any] = self.spotify.user_sp.recommendations(
-            seed_artists=seed_artists, limit=10
-        )["tracks"]
+        recommended: List[str, any] = [
+            track
+            for track in self.spotify.user_sp.recommendations(
+                seed_artists=seed_artists, limit=10
+            )["tracks"]
+            if track["id"] not in known_tracks
+        ]
 
+        recommended_ids: List[str] = [track["id"] for track in recommended]
         recommended_names: List[str] = [track["name"] for track in recommended]
         recommended_urls: List[str] = [
             track["external_urls"]["spotify"] for track in recommended
@@ -861,7 +890,7 @@ def main():
         client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
         client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
         redirect_uri=os.environ.get("REDIRECT_URI"),
-        scope="user-read-private user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative",
+        scope="user-read-private user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative user-library-read",
     )
     bot = NotifyBot(
         bot_token=os.environ.get("BOT_API_TOKEN"),
