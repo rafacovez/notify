@@ -228,7 +228,7 @@ class NotifyBot(threading.Thread):
                 "desc": "Get the last song you played",
             },
             "playlists": {
-                "func": self.disabled,
+                "func": self.retrieve_playlists,
                 "desc": "Get a list of the playlists you own",
             },
             "topten": {
