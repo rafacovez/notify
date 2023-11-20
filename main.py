@@ -212,15 +212,15 @@ class NotifyBot(threading.Thread):
                 "desc": "Permanently deletes your data from Notify",
             },
             "notify": {
-                "func": self.under_development,
+                "func": self.add_notify,
                 "desc": "Start tracking a playlist to get notified when someone else adds or removes a song from it",
             },
             "removenotify": {
-                "func": self.under_development,
+                "func": self.remove_notify,
                 "desc": "Stop tracking a playlist",
             },
             "shownotify": {
-                "func": self.under_development,
+                "func": self.show_notify,
                 "desc": "Get a list of the playlists you're currently tracking",
             },
             "lastplayed": {
@@ -349,20 +349,21 @@ class NotifyBot(threading.Thread):
         response: Dict[str, any] = self.spotify.user_sp.current_user_playlists(
             offset=offset
         )
-        fetched_playlists: Optional[List[Dict[str, any]]] = response["items"]
+        fetched_playlists = response["items"]
         user_playlists += fetched_playlists
-        offset += len(fetched_playlists)
 
-        if len(fetched_playlists) < 50:
-            self.bot.send_message(
-                self.chat_id, "Apparently, you have more than 50 playlists... "
+        while len(fetched_playlists) > 50:
+            offset += len(fetched_playlists)
+            response: Dict[str, any] = self.spotify.user_sp.current_user_playlists(
+                offset=offset
             )
+            fetched_playlists = response["items"]
+            user_playlists += fetched_playlists
 
         return user_playlists
 
     # TODO: study how this functions work after worker refactory
 
-    """
     def add_notify(self) -> None:
         if len(self.get_user_playlists()) > 0:
             self.current_action = "add_notify"
@@ -526,7 +527,6 @@ class NotifyBot(threading.Thread):
                 self.chat_id,
                 f"These are the playlist in your notify list:\n{notify_playlists_message}",
             )
-    """
 
     def last_played(self) -> None:
         last_played: Dict[str, any] = self.spotify.user_sp.current_user_recently_played(
@@ -661,6 +661,16 @@ class NotifyBot(threading.Thread):
     def start_listening(self) -> None:
         try:
             print("Notify started!")
+
+            if os.path.isfile(
+                os.environ.get("NOTIFY_DB")
+            ) and self.database.fetch_users() not in [None, []]:
+                for user in self.database.fetch_users():
+                    self.bot.send_message(
+                        user,
+                        "Updates have been made to Notify!\n\n- Commands /notify, /removenotify and /shownotify now work properly.\n\nThese commands will allow you to add playlists to your Notify list and be notified about changes every minute.",
+                    )
+
             self.bot.infinity_polling()
 
         except Exception as e:
@@ -774,7 +784,7 @@ class Server(threading.Thread):
 # FIXME: optimize this code for it to use less resources and
 # be faster, I'm sure there's a better approach...
 
-"""
+
 class Worker(threading.Thread):
     def __init__(
         self,
@@ -786,6 +796,7 @@ class Worker(threading.Thread):
         self.database: Database = self.notify.database
         self.sp: Spotify = self.notify.spotify.sp
         self.bot: TeleBot = self.notify.bot
+        self.sleep_time = 60
 
     def run(self) -> None:
         while not self.kill_received:
@@ -804,9 +815,7 @@ class Worker(threading.Thread):
                             for playlist_id in notify_playlists
                         ]
 
-                        print(f"The user notify playlists are: {notify_playlists}")
-
-                        while True:
+                        while not self.kill_received:
                             notify_snapshots: List[str] = [
                                 f"{playlist_id}:{self.sp.playlist(playlist_id)['snapshot_id']}"
                                 for playlist_id in notify_playlists
@@ -841,14 +850,16 @@ class Worker(threading.Thread):
                                     # TODO: get previous tracks and compare them with new generated ones
                                     # from each notify playlist to tell the user which song was added or removed
 
-                                    # changed_playlist_tracks = [
-                                    #     track["track"]["name"]
-                                    #     for track in self.sp.playlist_tracks(
-                                    #         changed_playlist_id
-                                    #     )["items"]
-                                    # ]
-                                    #
-                                    # print(changed_playlist_tracks)
+                                    """
+                                    prev_changed_playlist_tracks = [
+                                        track["track"]["name"]
+                                        for track in self.sp.playlist_tracks(
+                                            changed_playlist_id
+                                        )["items"]
+                                    ]
+
+                                    print(prev_changed_playlist_tracks)
+                                    """
 
                                     self.bot.send_message(
                                         user,
@@ -857,9 +868,8 @@ class Worker(threading.Thread):
 
                             prev_notify_snapshots = notify_snapshots
 
-                            sleep(2)
-            sleep(2)
-"""
+                            sleep(self.sleep_time)
+            sleep(self.sleep_time)
 
 
 # configuration for script threads
@@ -898,16 +908,20 @@ def main():
         spotify=spotify_handler,
     )
     server = Server(bot)
+    worker = Worker(bot)
 
     for i in range(options.threadNum):
         bot_thread = bot
         server_thread = server
+        worker_thread = worker
 
         bot_thread.start()
         server_thread.start()
+        worker_thread.start()
 
         threads.append(bot_thread)
         threads.append(server_thread)
+        threads.append(worker_thread)
 
     while has_live_threads(threads):
         try:
