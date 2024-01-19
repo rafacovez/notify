@@ -212,15 +212,15 @@ class NotifyBot(threading.Thread):
                 "desc": "Permanently deletes your data from Notify",
             },
             "notify": {
-                "func": self.add_notify,
+                "func": self.disabled,
                 "desc": "Start tracking a playlist to get notified when someone else adds or removes a song from it",
             },
             "removenotify": {
-                "func": self.remove_notify,
+                "func": self.disabled,
                 "desc": "Stop tracking a playlist",
             },
             "shownotify": {
-                "func": self.show_notify,
+                "func": self.disabled,
                 "desc": "Get a list of the playlists you're currently tracking",
             },
             "lastplayed": {
@@ -668,7 +668,7 @@ class NotifyBot(threading.Thread):
                 for user in self.database.fetch_users():
                     self.bot.send_message(
                         user,
-                        "Updates have been made to Notify!\n\n- Commands /notify, /removenotify and /shownotify now work properly.\n\nThese commands will allow you to add playlists to your Notify list and be notified about changes every minute.",
+                        "Updates have been made to Notify!\n\n- Commands /notify, /removenotify and /shownotify have been temporarily disabled.",
                     )
 
             self.bot.infinity_polling()
@@ -908,20 +908,16 @@ def main():
         spotify=spotify_handler,
     )
     server = Server(bot)
-    worker = Worker(bot)
 
     for i in range(options.threadNum):
         bot_thread = bot
         server_thread = server
-        worker_thread = worker
 
         bot_thread.start()
         server_thread.start()
-        worker_thread.start()
 
         threads.append(bot_thread)
         threads.append(server_thread)
-        threads.append(worker_thread)
 
     while has_live_threads(threads):
         try:
