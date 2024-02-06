@@ -1,0 +1,172 @@
+:root {
+  --font-size: 1em;
+  --font-medium: 400;
+  --font-bold: 700;
+  --font-family: "Arial", sans-serif;
+  --black: rgb(33, 33, 33);
+  --white: rgb(242, 242, 242);
+  --notify-green: rgb(25, 187, 82);
+  --dark-green: rgb(7, 55, 21);
+}
+
+html {
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+body {
+  background-color: var(--black);
+  color: var(--white);
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+  margin: 0;
+  padding: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  font-weight: var(--font-bold);
+  line-height: calc(var(--font-size) * 1);
+  margin: 0;
+  padding: 0;
+}
+
+p {
+  font-weight: var(--font-regular);
+  line-height: calc(var(--font-size) * 1.6);
+  margin: 0;
+  padding: 0;
+}
+
+ol,
+ul {
+  list-style: none;
+}
+
+input,
+textarea,
+button,
+select {
+  font: inherit;
+}
+
+img,
+picture,
+svg,
+video,
+object {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  text-decoration: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.btn {
+  width: fit-content;
+  padding: 1rem 3rem;
+  font-size: calc(var(--font-size) * 1.2);
+  font-weight: var(--font-bold);
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: 0.2s ease-out;
+  box-shadow: 2px 4px 8px rgba(255, 255, 255, 0.1);
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn--primary {
+  background-color: var(--notify-green);
+  color: var(--black);
+}
+
+.btn--secondary {
+  background: transparent;
+  border: 1px solid var(--notify-green);
+  color: var(--notify-green);
+  box-shadow: none;
+}
+
+.link {
+  text-decoration: underline;
+  color: inherit;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 1rem;
+}
+
+.header__logo {
+  width: 50px;
+  border-radius: 50%;
+}
+
+.header__heading {
+  font-size: calc(var(--font-size) * 1.6);
+}
+
+.main {
+  width: 90%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.container {
+  margin: 2rem 0;
+}
+
+.landing {
+  text-align: center;
+  display: grid;
+  place-items: center;
+  gap: 2rem;
+}
+
+.landing__paragraph {
+  opacity: 0.6;
+}
+
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  z-index: -50;
+}
+
+.footer__illustration {
+  transform: translateY(5px);
+}
+
+.footer__container {
+  background-color: var(--notify-green);
+  color: var(--dark-green);
+  padding: 2rem;
+  text-align: center;
+}
