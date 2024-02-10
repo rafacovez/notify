@@ -43,11 +43,11 @@ class Server(threading.Thread):
 
             return render_template("homepage.html", message="error"), 500
 
-        @self.app.route("/notify")
+        @self.app.route("/")
         def homepage() -> Any:
             return render_template("homepage.html")
 
-        @self.app.route("/notify/callback")
+        @self.app.route("/callback")
         def callback() -> Any:
             try:
                 # handle authorization denied
