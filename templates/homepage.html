@@ -27,6 +27,8 @@
       <div class="container landing">
         {% if message == "error" %}
         <h1 class="landing__heading">An error ocurred...</h1>
+        {% elif message == "success" %}
+        <h1 class="landing__heading">Done! you can use Notify now.</h1>
         {% else %}
         <h1 class="landing__heading">Your music taste. Better.</h1>
         <p class="landing__paragraph">
