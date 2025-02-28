@@ -26,13 +26,13 @@ class Server(threading.Thread):
         self,
         bot: NotifyTelegramBot,
         redirect_host: str = REDIRECT_HOST,
-        redirect_port: str = REDIRECT_PORT,
+        redirect_port: int = REDIRECT_PORT,
     ) -> None:
         threading.Thread.__init__(self)
         self.kill_received = False
         self.app: Flask = Flask(__name__)
         self.redirect_host: str = redirect_host
-        self.redirect_port: str = redirect_port
+        self.redirect_port: int = redirect_port
         self.bot: NotifyTelegramBot = bot
         self.database: DatabaseHandler = self.bot.database
         self.spotify: SpotifyHandler = self.bot.spotify

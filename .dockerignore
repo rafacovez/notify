@@ -1,0 +1,50 @@
+# Ignore Python virtual environment
+venv/
+.env/
+.env*/
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.py.class
+
+# Ignore IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore Git files
+.git/
+.gitignore
+
+# Ignore local environment files
+.env.local
+.env.*.local
+
+# Ignore logs and local data
+logs/
+*.log
+*.sql
+*.csv
+
+# Ignore macOS specific files
+.DS_Store
+
+# Ignore test and development files
+tests/
+test/
+*.test.py
+*.spec
+
+# Ignore build and distribution files
+build/
+dist/
+*.egg-info/
+*.egg
+*.whl
+
+# Ignore Spotipy cache (if applicable)
+.cache/
