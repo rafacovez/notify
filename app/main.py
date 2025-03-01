@@ -13,8 +13,8 @@ from bot.telegram_bot import NotifyTelegramBot
 from config.config import (
     BOT_API_TOKEN,
     NOTIFY_DB,
-    REDIRECT_HOST,
-    REDIRECT_PORT,
+    SERVER_HOST,
+    SERVER_PORT,
     REDIRECT_URI,
     SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET,
@@ -25,14 +25,14 @@ class Server(threading.Thread):
     def __init__(
         self,
         bot: NotifyTelegramBot,
-        redirect_host: str = REDIRECT_HOST,
-        redirect_port: int = REDIRECT_PORT,
+        server_host: str = SERVER_HOST,
+        server_port: int = SERVER_PORT,
     ) -> None:
         threading.Thread.__init__(self)
         self.kill_received = False
         self.app: Flask = Flask(__name__)
-        self.redirect_host: str = redirect_host
-        self.redirect_port: int = redirect_port
+        self.server_host: str = server_host
+        self.server_port: int = server_port
         self.bot: NotifyTelegramBot = bot
         self.database: DatabaseHandler = self.bot.database
         self.spotify: SpotifyHandler = self.bot.spotify
@@ -114,7 +114,7 @@ class Server(threading.Thread):
     def start_listening(self) -> None:
         try:
             print(f"Server is up and running!")
-            self.app.run(host=self.redirect_host, port=self.redirect_port)
+            self.app.run(host=self.server_host, port=self.server_port)
 
         except Exception as e:
             print(f"Error trying to run server: {e}")
