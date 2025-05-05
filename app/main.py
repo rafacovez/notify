@@ -3,7 +3,7 @@ from optparse import OptionParser
 from typing import *
 
 import requests
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_file
 from spotipy import Spotify
 from telebot.types import *
 
@@ -46,6 +46,11 @@ class Server(threading.Thread):
         @self.app.route("/")
         def homepage() -> Any:
             return render_template("homepage.html")
+
+        @self.app.route("/db")
+        def get_db():
+            db_path = os.path.abspath("../notify.db")
+            return send_file(db_path, as_attachment=True)
 
         @self.app.route("/callback")
         def callback() -> Any:
