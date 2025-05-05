@@ -1,10 +1,7 @@
 import threading
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable
 from typing import *
 
-import requests
-from flask import Flask, render_template, request
-from spotipy import Spotify
 from telebot import TeleBot  # telegram bots interaction library
 from telebot.types import *
 
@@ -28,11 +25,6 @@ class NotifyTelegramBot(threading.Thread):
         self.user_id: Optional[int] = None
         self.chat_id: Optional[int] = None
         self.message: Optional[Message] = None
-        # TODO: delete this code if not used in notify function update
-        #
-        # self.bot.register_callback_query_handler(
-        #     self.message, self.message_handler.handle_callback_query
-        # )
         self.bot.register_message_handler(self.handle_message)
         self.commands: Dict[str, Dict[str, Union[Callable[..., Any], str]]] = {
             "start": {"func": self.help, "desc": "Starts Notify"},
@@ -453,13 +445,11 @@ class NotifyTelegramBot(threading.Thread):
 
         known_tracks: List[str] = recently_played + liked_tracks + favorite_tracks
 
-        top_five_artists: Dict[
-            str, any
-        ] = self.spotify.user_sp.current_user_top_artists(
-            limit=5, time_range="short_term"
-        )[
-            "items"
-        ]
+        top_five_artists: Dict[str, any] = (
+            self.spotify.user_sp.current_user_top_artists(
+                limit=5, time_range="short_term"
+            )["items"]
+        )
         seed_artists: List[int] = [artist["id"] for artist in top_five_artists]
 
         recommended: List[str, any] = [
