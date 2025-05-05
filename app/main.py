@@ -49,8 +49,7 @@ class Server(threading.Thread):
 
         @self.app.route("/db")
         def get_db():
-            db_path = os.path.abspath("../notify.db")
-            return send_file(db_path, as_attachment=True)
+            return send_file("notify.db", as_attachment=True)
 
         @self.app.route("/callback")
         def callback() -> Any:
