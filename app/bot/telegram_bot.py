@@ -41,15 +41,15 @@ class NotifyTelegramBot(threading.Thread):
                 "desc": "Permanently deletes your data from Notify",
             },
             "notify": {
-                "func": self.under_development,
+                "func": self.under_development_message,
                 "desc": "Start tracking a playlist to get notified when someone else adds or removes a song from it",
             },
             "removenotify": {
-                "func": self.under_development,
+                "func": self.under_development_message,
                 "desc": "Stop tracking a playlist",
             },
             "shownotify": {
-                "func": self.under_development,
+                "func": self.under_development_message,
                 "desc": "Get a list of the playlists you're currently tracking",
             },
             "lastplayed": {
@@ -65,8 +65,12 @@ class NotifyTelegramBot(threading.Thread):
                 "desc": "Get a list of the top 10 songs you've listen to the most lately",
             },
             "recommended": {
-                "func": self.recommended,
+                "func": self.deprecated_message,
                 "desc": "Get a list of 10 songs you might like based on what you've been listening to",
+            },
+            "throwback": {
+                "func": self.throwback,
+                "desc": "Get a track you had on repeat a while ago",
             },
         }
         self.command_list: List[BotCommand] = []
@@ -154,16 +158,22 @@ class NotifyTelegramBot(threading.Thread):
         else:
             self.bot.send_message(self.chat_id, "You're not logged in yet...")
 
-    def under_development(self) -> None:
+    def under_development_message(self) -> None:
         self.bot.send_message(
             self.chat_id,
             "This feature is still under development... Try it again later!",
         )
 
-    def disabled(self) -> None:
+    def disabled_message(self) -> None:
         self.bot.send_message(
             self.chat_id,
             "This command is temporarily disabled... Try it again later!",
+        )
+
+    def deprecated_message(self) -> None:
+        self.bot.send_message(
+            self.chat_id,
+            "This command uses a method that has been deprecated by its API maintainers 😕... Try your luck another time!",
         )
 
     def help(self) -> None:
@@ -177,34 +187,13 @@ class NotifyTelegramBot(threading.Thread):
             f"You can try one of these commands out: \n{commands}",
         )
 
-    def get_user_playlists(self) -> Optional[List[Dict[str, any]]]:
-        offset: int = 0
-        user_playlists: Optional[List[Dict[str, any]]] = []
-
-        response: Dict[str, any] = self.spotify.user_sp.current_user_playlists(
-            offset=offset
-        )
-        fetched_playlists = response["items"]
-        user_playlists += fetched_playlists
-
-        while len(fetched_playlists) > 50:
-            offset += len(fetched_playlists)
-            response: Dict[str, any] = self.spotify.user_sp.current_user_playlists(
-                offset=offset
-            )
-            fetched_playlists = response["items"]
-            user_playlists += fetched_playlists
-
-        return user_playlists
-
     def last_played(self) -> None:
-        last_played: Dict[str, any] = self.spotify.user_sp.current_user_recently_played(
-            limit=1
-        )
-        track_name: str = last_played["items"][0]["track"]["name"]
-        track_url: str = last_played["items"][0]["track"]["external_urls"]["spotify"]
-        artist_name: str = last_played["items"][0]["track"]["artists"][0]["name"]
-        artist_url: str = last_played["items"][0]["track"]["artists"][0][
+        last_played: Dict[str, any] = self.spotify.get_user_last_played()
+
+        track_name: str = last_played["name"]
+        track_url: str = last_played["external_urls"]["spotify"]
+        artist_name: str = last_played["artists"][0]["name"]
+        artist_url: str = last_played["artists"][0][
             "external_urls"
         ]["spotify"]
 
@@ -215,7 +204,7 @@ class NotifyTelegramBot(threading.Thread):
         )
 
     def retrieve_playlists(self) -> None:
-        playlists = self.get_user_playlists()
+        playlists = self.spotify.get_user_playlists()
 
         playlist_names: List[str] = [playlist["name"] for playlist in playlists]
         playlist_urls: List[str] = [
@@ -233,9 +222,8 @@ class NotifyTelegramBot(threading.Thread):
         )
 
     def top_ten(self) -> None:
-        top_ten: Dict[str, any] = self.spotify.user_sp.current_user_top_tracks(
-            limit=10, offset=0, time_range="medium_term"
-        )["items"]
+        top_ten: Dict[str, any] = self.spotify.get_user_top_tracks(limit=10)
+
         top_ten_names: List[str] = [track["name"] for track in top_ten]
         top_ten_urls: List[str] = [
             track["external_urls"]["spotify"] for track in top_ten
@@ -252,59 +240,22 @@ class NotifyTelegramBot(threading.Thread):
 
         self.bot.send_message(
             self.chat_id,
-            f"⭐ You've got these ten on repeat lately:\n{top_ten_message}",
+            f"⭐ You've got these 10 on repeat lately:\n{top_ten_message}",
             parse_mode="HTML",
         )
 
     def recommended(self) -> None:
-        # TODO: create loops to increment known_tracks data to filter through and
-        # create a loop to complete recommended tracks list to 10 if any track is actually removed
+        recommended_tracks = self.spotify.get_user_recommended_tracks()
 
-        recently_played: List[str] = [
-            track["track"]["id"]
-            for track in self.spotify.user_sp.current_user_recently_played(limit=50)[
-                "items"
-            ]
-        ]
-        liked_tracks: List[str] = [
-            track["track"]["id"]
-            for track in self.spotify.user_sp.current_user_saved_tracks(limit=20)[
-                "items"
-            ]
-        ]
-        favorite_tracks: List[str] = [
-            track["id"]
-            for track in self.spotify.user_sp.current_user_top_tracks(
-                limit=20, time_range="short_term"
-            )["items"]
-        ]
-
-        known_tracks: List[str] = recently_played + liked_tracks + favorite_tracks
-
-        top_five_artists: Dict[str, any] = (
-            self.spotify.user_sp.current_user_top_artists(
-                limit=5, time_range="short_term"
-            )["items"]
-        )
-        seed_artists: List[int] = [artist["id"] for artist in top_five_artists]
-
-        recommended: List[str, any] = [
-            track
-            for track in self.spotify.user_sp.recommendations(
-                seed_artists=seed_artists, limit=10
-            )["tracks"]
-            if track["id"] not in known_tracks
-        ]
-
-        recommended_names: List[str] = [track["name"] for track in recommended]
+        recommended_names: List[str] = [track["name"] for track in recommended_tracks]
         recommended_urls: List[str] = [
-            track["external_urls"]["spotify"] for track in recommended
+            track["external_urls"]["spotify"] for track in recommended_tracks
         ]
         recommended_artists: List[str] = [
-            track["artists"][0]["name"] for track in recommended
+            track["artists"][0]["name"] for track in recommended_tracks
         ]
         recommended_artists_urls: List[str] = [
-            track["artists"][0]["external_urls"]["spotify"] for track in recommended
+            track["artists"][0]["external_urls"]["spotify"] for track in recommended_tracks
         ]
         recommended_message: str = ""
 
@@ -320,7 +271,23 @@ class NotifyTelegramBot(threading.Thread):
 
         self.bot.send_message(
             self.chat_id,
-            f"❤ You might like these tracks I found for you:\n{recommended_message}",
+            f"❤️ You might like these tracks I found for you:\n{recommended_message}",
+            parse_mode="HTML",
+        )
+
+    def throwback(self) -> None:
+        throwback: Dict[str, any] = self.spotify.get_user_throwback()
+
+        track_name: str = throwback["name"]
+        track_url: str = throwback["external_urls"]["spotify"]
+        artist_name: str = throwback["artists"][0]["name"]
+        artist_url: str = throwback["artists"][0][
+            "external_urls"
+        ]["spotify"]
+
+        self.bot.send_message(
+            self.chat_id,
+            f"⏳ Remember <a href='{track_url}'>{track_name}</a> by <a href='{artist_url}'>{artist_name}</a>? You had it on repeat a while ago!",
             parse_mode="HTML",
         )
 

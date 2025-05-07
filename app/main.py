@@ -138,7 +138,7 @@ def main():
         client_id=SPOTIFY_CLIENT_ID,
         client_secret=SPOTIFY_CLIENT_SECRET,
         redirect_uri=REDIRECT_URI,
-        scope="user-read-private user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative user-library-read",
+        scope="user-read-private user-read-currently-playing user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative user-library-read",
     )
 
     bot = NotifyTelegramBot(
