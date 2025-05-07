@@ -7,3 +7,4 @@ db.sqlite3
 .venv
 .env.local
 .devcontainer
+.DS_Store
