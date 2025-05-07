@@ -1,11 +1,8 @@
 import threading
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable
 from typing import *
 
-import requests
-from flask import Flask, render_template, request
-from spotipy import Spotify
-from telebot import TeleBot  # telegram bots interaction library
+from telebot import TeleBot
 from telebot.types import *
 
 from api.services.database_service import DatabaseHandler
@@ -28,11 +25,6 @@ class NotifyTelegramBot(threading.Thread):
         self.user_id: Optional[int] = None
         self.chat_id: Optional[int] = None
         self.message: Optional[Message] = None
-        # TODO: delete this code if not used in notify function update
-        #
-        # self.bot.register_callback_query_handler(
-        #     self.message, self.message_handler.handle_callback_query
-        # )
         self.bot.register_message_handler(self.handle_message)
         self.commands: Dict[str, Dict[str, Union[Callable[..., Any], str]]] = {
             "start": {"func": self.help, "desc": "Starts Notify"},
@@ -49,15 +41,15 @@ class NotifyTelegramBot(threading.Thread):
                 "desc": "Permanently deletes your data from Notify",
             },
             "notify": {
-                "func": self.disabled,
+                "func": self.under_development_message,
                 "desc": "Start tracking a playlist to get notified when someone else adds or removes a song from it",
             },
             "removenotify": {
-                "func": self.disabled,
+                "func": self.under_development_message,
                 "desc": "Stop tracking a playlist",
             },
             "shownotify": {
-                "func": self.disabled,
+                "func": self.under_development_message,
                 "desc": "Get a list of the playlists you're currently tracking",
             },
             "lastplayed": {
@@ -73,8 +65,12 @@ class NotifyTelegramBot(threading.Thread):
                 "desc": "Get a list of the top 10 songs you've listen to the most lately",
             },
             "recommended": {
-                "func": self.recommended,
+                "func": self.deprecated_message,
                 "desc": "Get a list of 10 songs you might like based on what you've been listening to",
+            },
+            "throwback": {
+                "func": self.throwback,
+                "desc": "Get a track you had on repeat a while ago",
             },
         }
         self.command_list: List[BotCommand] = []
@@ -97,14 +93,6 @@ class NotifyTelegramBot(threading.Thread):
 
         else:
             self.bot.send_message(self.chat_id, "Sorry, I only speak commands...")
-
-    # TODO: delete this code if not used in notify function update
-    #
-    # def handle_callback_query(self, call) -> None:
-    #     if self.current_action == "add_notify":
-    #         self.handle_add_notify_callback(call)
-    #     elif self.current_action == "remove_notify":
-    #         self.handle_remove_notify_callback(call)
 
     def determine_function(self) -> None:
         command: str = self.message.text
@@ -129,7 +117,16 @@ class NotifyTelegramBot(threading.Thread):
                     command_func: function = self.commands[
                         command_item.command.strip("/")
                     ]["func"]
-                    command_func()
+                    
+                    try:
+                        command_func()
+                    except Exception as e:
+                        print(f"Error executing command {command}: {e}")
+                        self.bot.send_message(
+                            self.chat_id,
+                            "An error occurred while executing the command. Please try again later.",
+                        )
+
                 else:
                     self.auth_user()
 
@@ -161,20 +158,27 @@ class NotifyTelegramBot(threading.Thread):
         else:
             self.bot.send_message(self.chat_id, "You're not logged in yet...")
 
-    def under_development(self) -> None:
+    def under_development_message(self) -> None:
         self.bot.send_message(
             self.chat_id,
             "This feature is still under development... Try it again later!",
         )
 
-    def disabled(self) -> None:
+    def disabled_message(self) -> None:
         self.bot.send_message(
             self.chat_id,
             "This command is temporarily disabled... Try it again later!",
         )
 
+    def deprecated_message(self) -> None:
+        self.bot.send_message(
+            self.chat_id,
+            "This command uses a method that has been deprecated by its API maintainers 😕... Try your luck another time!",
+        )
+
     def help(self) -> None:
         commands: str = ""
+        
         for command_item in self.command_list:
             commands += f"\n {command_item.command}: {command_item.description}"
 
@@ -183,200 +187,13 @@ class NotifyTelegramBot(threading.Thread):
             f"You can try one of these commands out: \n{commands}",
         )
 
-    def get_user_playlists(self) -> Optional[List[Dict[str, any]]]:
-        offset: int = 0
-        user_playlists: Optional[List[Dict[str, any]]] = []
-
-        response: Dict[str, any] = self.spotify.user_sp.current_user_playlists(
-            offset=offset
-        )
-        fetched_playlists = response["items"]
-        user_playlists += fetched_playlists
-
-        while len(fetched_playlists) > 50:
-            offset += len(fetched_playlists)
-            response: Dict[str, any] = self.spotify.user_sp.current_user_playlists(
-                offset=offset
-            )
-            fetched_playlists = response["items"]
-            user_playlists += fetched_playlists
-
-        return user_playlists
-
-    # TODO: study how this functions work after worker refactory
-
-    # def add_notify(self) -> None:
-    #     if len(self.get_user_playlists()) > 0:
-    #         self.current_action = "add_notify"
-    #
-    #         playlists = [
-    #             InlineKeyboardButton(playlist["name"], callback_data=playlist["id"])
-    #             for playlist in self.get_user_playlists()
-    #         ]
-    #
-    #         keyboard = InlineKeyboardMarkup(row_width=2)
-    #
-    #         keyboard.add(*playlists)
-    #
-    #         self.bot.send_message(
-    #             self.chat_id,
-    #             "Click on the playlist you'd like to get notified about.",
-    #             reply_markup=keyboard,
-    #         )
-    #
-    #     else:
-    #         self.bot.send_message(
-    #             self.chat_id,
-    #             "You don't seem to have any playlists in your library yet...",
-    #         )
-    #
-    # def handle_add_notify_callback(self, call):
-    #     selected_playlist_id: str = call.data
-    #     selected_playlist_name: str = self.spotify.sp.playlist(selected_playlist_id)[
-    #         "name"
-    #     ]
-    #     playlist_is_stored: bool = False
-    #     limit_was_reached: bool = False
-    #
-    #     if self.database.get_notify(self.user_id) in ["", None]:
-    #         self.database.update_notify(selected_playlist_id, self.user_id)
-    #         self.bot.send_message(
-    #             self.chat_id,
-    #             f"{selected_playlist_name} was successfully added to your notify list!",
-    #         )
-    #
-    #     else:
-    #         notify_playlists: List[str] = self.database.get_notify(self.user_id)
-    #         notify_playlists_list: List[str] = notify_playlists.split(",")
-    #
-    #         for playlist_id in notify_playlists_list:
-    #             if selected_playlist_id == playlist_id:
-    #                 playlist_is_stored = True
-    #
-    #         if len(notify_playlists_list) > 2:
-    #             limit_was_reached = True
-    #
-    #         if playlist_is_stored:
-    #             self.bot.send_message(
-    #                 self.chat_id,
-    #                 f"{selected_playlist_name} is already in your notify list.",
-    #             )
-    #         elif limit_was_reached:
-    #             self.bot.send_message(
-    #                 self.chat_id,
-    #                 "Sorry, but you can't have more than 3 playlists in your notify list at a time...",
-    #             )
-    #         else:
-    #             notify_playlists += f",{selected_playlist_id}"
-    #             self.database.update_notify(notify_playlists, self.user_id)
-    #             self.bot.send_message(
-    #                 self.chat_id,
-    #                 f"{selected_playlist_name} was successfully added to your notify list!",
-    #             )
-    #
-    #     self.bot.answer_callback_query(call.id)
-    #
-    # def remove_notify(self) -> None:
-    #     self.current_action = "remove_notify"
-    #
-    #     if self.database.get_notify(self.user_id) in ["", None]:
-    #         self.bot.send_message(
-    #             self.chat_id, "You don't have any playlist in your notify list yet..."
-    #         )
-    #
-    #     else:
-    #         notify_playlists_list: List[str] = self.database.get_notify(
-    #             self.user_id
-    #         ).split(",")
-    #
-    #         playlists = [
-    #             InlineKeyboardButton(
-    #                 self.spotify.user_sp.playlist(playlist_id)["name"],
-    #                 callback_data=playlist_id,
-    #             )
-    #             for playlist_id in notify_playlists_list
-    #         ]
-    #
-    #         keyboard = InlineKeyboardMarkup(row_width=2)
-    #
-    #         keyboard.add(*playlists)
-    #
-    #         self.bot.send_message(
-    #             self.chat_id,
-    #             "Click on the playlist you'd like to remove from your notify list.",
-    #             reply_markup=keyboard,
-    #         )
-    #
-    # def handle_remove_notify_callback(self, call):
-    #     selected_playlist_id: str = call.data
-    #     selected_playlist_name: str = self.spotify.sp.playlist(selected_playlist_id)[
-    #         "name"
-    #     ]
-    #     playlist_is_stored: bool = False
-    #
-    #     if self.database.get_notify(self.user_id) in ["", None]:
-    #         self.bot.send_message(
-    #             self.chat_id,
-    #             "You don't have any playlist in your notify list yet...",
-    #         )
-    #
-    #     else:
-    #         notify_playlists: List[str] = self.database.get_notify(self.user_id)
-    #         notify_playlists_list: List[str] = notify_playlists.split(",")
-    #
-    #         for playlist_id in notify_playlists_list:
-    #             if selected_playlist_id == playlist_id:
-    #                 playlist_is_stored = True
-    #
-    #         if playlist_is_stored:
-    #             notify_playlists_list.remove(selected_playlist_id)
-    #
-    #             notify_playlists = ",".join(notify_playlists_list)
-    #
-    #             self.database.update_notify(notify_playlists, self.user_id)
-    #
-    #             self.bot.send_message(
-    #                 self.chat_id,
-    #                 f"{selected_playlist_name} was removed from your notify list.",
-    #             )
-    #         else:
-    #             self.bot.send_message(
-    #                 self.chat_id,
-    #                 "That playlist is not in your notify list anymore...",
-    #             )
-    #
-    #     self.bot.answer_callback_query(call.id)
-    #
-    # def show_notify(self) -> None:
-    #     if self.database.get_notify(self.user_id) in ["", None]:
-    #         self.bot.send_message(
-    #             self.chat_id, "You don't have any playlists in your notify list yet..."
-    #         )
-    #
-    #     else:
-    #         notify_playlists_list: List[str] = self.database.get_notify(
-    #             self.user_id
-    #         ).split(",")
-    #         notify_playlists_message: str = ""
-    #
-    #         for playlist_id in notify_playlists_list:
-    #             notify_playlists_message += (
-    #                 f"\n- {self.spotify.user_sp.playlist(playlist_id)['name']}"
-    #             )
-    #
-    #         self.bot.send_message(
-    #             self.chat_id,
-    #             f"These are the playlist in your notify list:\n{notify_playlists_message}",
-    #         )
-
     def last_played(self) -> None:
-        last_played: Dict[str, any] = self.spotify.user_sp.current_user_recently_played(
-            limit=1
-        )
-        track_name: str = last_played["items"][0]["track"]["name"]
-        track_url: str = last_played["items"][0]["track"]["external_urls"]["spotify"]
-        artist_name: str = last_played["items"][0]["track"]["artists"][0]["name"]
-        artist_url: str = last_played["items"][0]["track"]["artists"][0][
+        last_played: Dict[str, any] = self.spotify.get_user_last_played()
+
+        track_name: str = last_played["name"]
+        track_url: str = last_played["external_urls"]["spotify"]
+        artist_name: str = last_played["artists"][0]["name"]
+        artist_url: str = last_played["artists"][0][
             "external_urls"
         ]["spotify"]
 
@@ -387,7 +204,7 @@ class NotifyTelegramBot(threading.Thread):
         )
 
     def retrieve_playlists(self) -> None:
-        playlists = self.get_user_playlists()
+        playlists = self.spotify.get_user_playlists()
 
         playlist_names: List[str] = [playlist["name"] for playlist in playlists]
         playlist_urls: List[str] = [
@@ -405,9 +222,8 @@ class NotifyTelegramBot(threading.Thread):
         )
 
     def top_ten(self) -> None:
-        top_ten: Dict[str, any] = self.spotify.user_sp.current_user_top_tracks(
-            limit=10, offset=0, time_range="medium_term"
-        )["items"]
+        top_ten: Dict[str, any] = self.spotify.get_user_top_tracks(limit=10)
+
         top_ten_names: List[str] = [track["name"] for track in top_ten]
         top_ten_urls: List[str] = [
             track["external_urls"]["spotify"] for track in top_ten
@@ -424,62 +240,22 @@ class NotifyTelegramBot(threading.Thread):
 
         self.bot.send_message(
             self.chat_id,
-            f"⭐ You've got these ten on repeat lately:\n{top_ten_message}",
+            f"⭐ You've got these 10 on repeat lately:\n{top_ten_message}",
             parse_mode="HTML",
         )
 
     def recommended(self) -> None:
-        # TODO: create loops to increment known_tracks data to filter through and
-        # create a loop to complete recommended tracks list to 10 if any track is actually removed
+        recommended_tracks = self.spotify.get_user_recommended_tracks()
 
-        recently_played: List[str] = [
-            track["track"]["id"]
-            for track in self.spotify.user_sp.current_user_recently_played(limit=50)[
-                "items"
-            ]
-        ]
-        liked_tracks: List[str] = [
-            track["track"]["id"]
-            for track in self.spotify.user_sp.current_user_saved_tracks(limit=20)[
-                "items"
-            ]
-        ]
-        favorite_tracks: List[str] = [
-            track["id"]
-            for track in self.spotify.user_sp.current_user_top_tracks(
-                limit=20, time_range="short_term"
-            )["items"]
-        ]
-
-        known_tracks: List[str] = recently_played + liked_tracks + favorite_tracks
-
-        top_five_artists: Dict[
-            str, any
-        ] = self.spotify.user_sp.current_user_top_artists(
-            limit=5, time_range="short_term"
-        )[
-            "items"
-        ]
-        seed_artists: List[int] = [artist["id"] for artist in top_five_artists]
-
-        recommended: List[str, any] = [
-            track
-            for track in self.spotify.user_sp.recommendations(
-                seed_artists=seed_artists, limit=10
-            )["tracks"]
-            if track["id"] not in known_tracks
-        ]
-
-        # recommended_ids: List[str] = [track["id"] for track in recommended] TODO: remove this line if not used in function update
-        recommended_names: List[str] = [track["name"] for track in recommended]
+        recommended_names: List[str] = [track["name"] for track in recommended_tracks]
         recommended_urls: List[str] = [
-            track["external_urls"]["spotify"] for track in recommended
+            track["external_urls"]["spotify"] for track in recommended_tracks
         ]
         recommended_artists: List[str] = [
-            track["artists"][0]["name"] for track in recommended
+            track["artists"][0]["name"] for track in recommended_tracks
         ]
         recommended_artists_urls: List[str] = [
-            track["artists"][0]["external_urls"]["spotify"] for track in recommended
+            track["artists"][0]["external_urls"]["spotify"] for track in recommended_tracks
         ]
         recommended_message: str = ""
 
@@ -495,24 +271,29 @@ class NotifyTelegramBot(threading.Thread):
 
         self.bot.send_message(
             self.chat_id,
-            f"❤ You might like these tracks I found for you:\n{recommended_message}",
+            f"❤️ You might like these tracks I found for you:\n{recommended_message}",
+            parse_mode="HTML",
+        )
+
+    def throwback(self) -> None:
+        throwback: Dict[str, any] = self.spotify.get_user_throwback()
+
+        track_name: str = throwback["name"]
+        track_url: str = throwback["external_urls"]["spotify"]
+        artist_name: str = throwback["artists"][0]["name"]
+        artist_url: str = throwback["artists"][0][
+            "external_urls"
+        ]["spotify"]
+
+        self.bot.send_message(
+            self.chat_id,
+            f"⏳ Remember <a href='{track_url}'>{track_name}</a> by <a href='{artist_url}'>{artist_name}</a>? You had it on repeat a while ago!",
             parse_mode="HTML",
         )
 
     def start_listening(self) -> None:
         try:
             print("Notify started!")
-
-            # TODO: check why this code is not working on production
-
-            # if os.path.isfile(
-            #     NOTIFY_DB
-            # ) and self.database.fetch_users() not in [None, []]:
-            #     for user in self.database.fetch_users():
-            #         self.bot.send_message(
-            #             user,
-            #             "Updates have been made to Notify!\n\n- Commands /notify, /removenotify and /shownotify have been temporarily disabled.",
-            #         )
 
             self.bot.infinity_polling()
 
