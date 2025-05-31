@@ -1,34 +1,25 @@
-# FROM python:3.13-alpine
+# syntax=docker/dockerfile:1
 
-# WORKDIR /code
-
-# COPY ./requirements.txt /code/requirements.txt
-
-# RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
-
-# COPY ./app /code/app
-
-# CMD ["python", "./app/main.py"]
-
-# --- DEVELOPMENT ---
-# DELETE AND UNCOMMENT ABOVE BEFORE PUSHING
-
-FROM python:3.13-alpine
+FROM python:3.13-alpine AS base
 
 WORKDIR /code
 
-COPY ./requirements.txt /code/requirements.txt
+RUN apk add --no-cache gcc musl-dev libffi-dev python3-dev
 
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+COPY requirements.txt requirements-dev.txt ./
 
-CMD ["python", "-m", "watchdog", "app/main.py"]
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-# docker build -t notify-bot .
+COPY ./src ./src
 
-# docker run --rm -it \
-#   -v $(pwd)/app:/code/app \
-#   -p 8080:80 \
-#   --env-file app/config/.env.local \
-#   --name notify-bot \
-#   notify-bot \
-#   watchmedo auto-restart --pattern="*.py" --recursive -- python ./app/main.py
+FROM base AS dev
+
+RUN pip install --no-cache-dir --upgrade -r requirements-dev.txt
+
+RUN pip install watchdog
+
+CMD ["watchmedo", "auto-restart", "--pattern=*.py", "--recursive", "--", "python", "src/main.py"]
+
+FROM base AS prod
+
+CMD ["python", "src/main.py"]

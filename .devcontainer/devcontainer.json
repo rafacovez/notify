@@ -1,0 +1,27 @@
+{
+  "name": "notify-bot",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "target": "dev"
+  },
+  "runArgs": [
+    "-p",
+    "8080:80",
+    "--env-file",
+    "${localWorkspaceFolder}/src/config/.env.local"
+  ],
+  "mounts": [
+    "source=${localWorkspaceFolder}/src,target=/code/src,type=bind",
+    "source=${localWorkspaceFolder}/data,target=/code/data,type=bind"
+  ],
+  "workspaceFolder": "/code",
+  "shutdownAction": "stopContainer",
+  "postCreateCommand": "pip install --no-cache-dir --upgrade -r requirements.txt -r requirements-dev.txt",
+  "postStartCommand": "watchmedo auto-restart --pattern='*.py' --recursive -- python src/main.py",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "ms-python.vscode-pylance"]
+    }
+  },
+  "remoteUser": "root"
+}
