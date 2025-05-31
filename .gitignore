@@ -6,5 +6,4 @@ db.sqlite3
 *.log
 .venv
 .env.local
-.devcontainer
 .DS_Store
