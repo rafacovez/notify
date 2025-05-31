@@ -48,10 +48,6 @@ class Server(threading.Thread):
         def homepage() -> Any:
             return render_template("homepage.html")
 
-        @self.app.route("/db")
-        def get_db():
-            return send_file("notify.db", as_attachment=True)
-
         @self.app.route("/callback")
         def callback() -> Any:
             try:
@@ -127,7 +123,7 @@ class Server(threading.Thread):
     def run(self):
         while not self.kill_received:
             self.start_listening()
-            
+
 
 def shutdown_handler(sig, frame):
     print("Shutting down Notify...")
@@ -151,14 +147,15 @@ def main():
         spotify=spotify_handler,
     )
     server = Server(bot)
-    
+
     server_thread = threading.Thread(target=server.start, daemon=True)
     server_thread.start()
-    
+
     try:
         bot.start()
     except KeyboardInterrupt:
         shutdown_handler(None, None)
+
 
 if __name__ == "__main__":
     main()
