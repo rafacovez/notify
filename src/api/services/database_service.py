@@ -5,7 +5,7 @@ from typing import *
 
 
 class DatabaseHandler:
-    def __init__(self, database: str, backup: str = "backup.db") -> None:
+    def __init__(self, database: str, backup: str = "data/backup.db") -> None:
         self.database: str = database
         self.backup: str = backup
         self.conn: sqlite3.Connection = None

@@ -1,14 +1,23 @@
 {
   "name": "notify-bot",
   "build": {
-    "dockerfile": "../Dockerfile"
+    "dockerfile": "../Dockerfile",
+    "target": "dev"
   },
-  "runArgs": ["-p", "8080:80", "--env-file", "app/config/.env.local"],
-  "mounts": ["source=${localWorkspaceFolder}/app,target=/code/app,type=bind"],
+  "runArgs": [
+    "-p",
+    "8080:80",
+    "--env-file",
+    "${localWorkspaceFolder}/src/config/.env.local"
+  ],
+  "mounts": [
+    "source=${localWorkspaceFolder}/src,target=/code/src,type=bind",
+    "source=${localWorkspaceFolder}/data,target=/code/data,type=bind"
+  ],
   "workspaceFolder": "/code",
   "shutdownAction": "stopContainer",
-  "postCreateCommand": "pip install --no-cache-dir --upgrade -r requirements.txt",
-  "postStartCommand": "watchmedo auto-restart --pattern='*.py' --recursive -- python app/main.py",
+  "postCreateCommand": "pip install --no-cache-dir --upgrade -r requirements.txt -r requirements-dev.txt",
+  "postStartCommand": "watchmedo auto-restart --pattern='*.py' --recursive -- python src/main.py",
   "customizations": {
     "vscode": {
       "extensions": ["ms-python.python", "ms-python.vscode-pylance"]
