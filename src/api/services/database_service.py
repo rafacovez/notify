@@ -5,9 +5,9 @@ from typing import *
 
 
 class DatabaseHandler:
-    def __init__(self, database: str, backup: str = "data/backup.db") -> None:
-        self.database: str = database
-        self.backup: str = backup
+    def __init__(self, database: str) -> None:
+        self.database: str = f"data/{database}"
+        self.backup: str = "data/backup.db"
         self.conn: sqlite3.Connection = None
         self.backup_conn: sqlite3.Connection = None
         self.cursor: sqlite3.Cursor = None
