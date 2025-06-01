@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import threading
 from collections.abc import Callable
@@ -19,12 +20,13 @@ class DatabaseHandler:
 
     def __connect(self) -> None:
         try:
+            os.makedirs(os.path.dirname(self.database), exist_ok=True)
+
             self.conn = sqlite3.connect(self.database)
+            self.cursor = self.conn.cursor()
 
         except sqlite3.Error as e:
             print(f"Error connecting to database: {e}")
-
-        self.cursor = self.conn.cursor()
 
     def __disconnect(self) -> None:
         try:

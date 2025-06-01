@@ -10,10 +10,7 @@
     "--env-file",
     "${localWorkspaceFolder}/src/config/.env.local"
   ],
-  "mounts": [
-    "source=${localWorkspaceFolder}/src,target=/code/src,type=bind",
-    "source=${localWorkspaceFolder}/data,target=/code/data,type=bind"
-  ],
+  "mounts": ["source=${localWorkspaceFolder}/src,target=/code/src,type=bind"],
   "workspaceFolder": "/code",
   "shutdownAction": "stopContainer",
   "postCreateCommand": "pip install --no-cache-dir --upgrade -r requirements.txt -r requirements-dev.txt",
