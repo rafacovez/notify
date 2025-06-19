@@ -12,7 +12,7 @@ class DatabaseHandler:
         self.conn: sqlite3.Connection = None
         self.backup_conn: sqlite3.Connection = None
         self.cursor: sqlite3.Cursor = None
-        self.database_exists: bool = False
+        self.databases: bool = False
         self.lock = threading.Lock()
 
     def __do_nothing(self) -> None:
@@ -48,16 +48,33 @@ class DatabaseHandler:
                 result = func()
                 self.__disconnect()
             return result
-
-    def create_users_table(self) -> None:
+        
+    def create_tables(self) -> None:
         def logic() -> None:
             self.cursor.execute(
-                "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, telegram_user_id INTEGER, spotify_user_display TEXT, spotify_user_id TEXT, refresh_token TEXT, access_token TEXT, notify TEXT)"
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY,
+                    telegram_user_id INTEGER UNIQUE,
+                    spotify_user_display TEXT,
+                    spotify_user_id TEXT,
+                    refresh_token TEXT,
+                    access_token TEXT
+                )
+                """
             )
-
+            self.cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS notify (
+                    id INTEGER PRIMARY KEY,
+                    telegram_user_id INTEGER,
+                    playlist_id TEXT,
+                    snapshot_id TEXT,
+                    FOREIGN KEY (telegram_user_id) REFERENCES users(telegram_user_id) ON DELETE CASCADE ON UPDATE CASCADE
+                )
+                """
+            )
         self.process(logic)
-
-        self.database_exists = True
 
     def user_exists(self, user: int) -> bool:
         def logic() -> bool:
@@ -112,28 +129,77 @@ class DatabaseHandler:
 
         self.process(logic)
 
-    def fetch_users(self) -> List[int]:
+    def fetch_telegram_users(self) -> List[int]:
         def logic() -> List[int]:
             self.cursor.execute("SELECT telegram_user_id FROM users")
             return [row[0] for row in self.cursor.fetchall()]
 
         return self.process(logic)
 
-    def get_notify(self, user: int) -> str:
-        def logic() -> str:
-            self.cursor.execute(
-                "SELECT notify from users WHERE telegram_user_id = ?", (user,)
-            )
-
-            return self.cursor.fetchone()[0]
-
-        return self.process(logic)
-
-    def update_notify(self, playlist: str, user: int) -> None:
+    def add_notify(self, telegram_user_id: int, playlist_id: str, snapshot_id: str) -> None:
         def logic() -> None:
             self.cursor.execute(
-                "UPDATE users SET notify = ? WHERE telegram_user_id = ?",
-                (playlist, user),
+                "INSERT INTO notify (telegram_user_id, playlist_id, snapshot_id) VALUES (?, ?, ?)",
+                (telegram_user_id, playlist_id, snapshot_id),
             )
 
         self.process(logic)
+
+    def delete_notify(self, telegram_user_id: int, playlist_id: str) -> None:
+        def logic() -> None:
+            self.cursor.execute(
+                "DELETE FROM notify WHERE telegram_user_id = ? AND playlist_id = ?",
+                (telegram_user_id, playlist_id,),
+            )
+
+        self.process(logic)
+
+    def delete_notify_user(self, telegram_user_id: int) -> None:
+        def logic() -> None:
+            self.cursor.execute(
+                "DELETE FROM notify WHERE telegram_user_id = ?",
+                (telegram_user_id,),
+            )
+
+        self.process(logic)
+
+    def playlist_exists(self, telegram_user_id: int, playlist_id: str) -> bool:
+        def logic() -> bool:
+            self.cursor.execute(
+                "SELECT id FROM notify WHERE telegram_user_id = ? AND playlist_id = ?",
+                (telegram_user_id, playlist_id,),
+            )
+            notify_id: int = self.cursor.fetchone()
+
+            if notify_id is None:
+                return False
+            else:
+                return True
+
+        return self.process(logic)
+
+    def get_notify_playlists_by_user(self, telegram_user_id: int) -> List[str]:
+        def logic() -> List[str]:
+            self.cursor.execute(
+                "SELECT playlist_id FROM notify WHERE telegram_user_id = ?", (telegram_user_id,)
+            )
+            return [row[0] for row in self.cursor.fetchall()]
+
+        return self.process(logic)
+
+    def update_notify_snapshot(self, telegram_user_id: int, playlist_id: str, snapshot_id: str) -> None:
+        def logic() -> None:
+            self.cursor.execute(
+                "UPDATE notify SET snapshot_id = ? WHERE telegram_user_id = ? AND playlist_id = ?", (snapshot_id, telegram_user_id, playlist_id)
+            )
+
+        self.process(logic)
+
+    def get_notify_snapshot(self, telegram_user_id: int, playlist_id: str) -> str:
+        def logic() -> str:
+            self.cursor.execute(
+                "SELECT snapshot_id FROM notify WHERE telegram_user_id = ? AND playlist_id = ?", (telegram_user_id, playlist_id,)
+            )
+            return self.cursor.fetchone()[0]
+
+        return self.process(logic)
