@@ -151,6 +151,9 @@ def main():
     server_thread = threading.Thread(target=server.start, daemon=True)
     server_thread.start()
 
+    task_thread = threading.Thread(target=bot.notify_changes, daemon=True)
+    task_thread.start()
+
     try:
         bot.start()
     except KeyboardInterrupt:

@@ -1,5 +1,7 @@
 from typing import *
 
+import re
+
 from spotipy import Spotify, SpotifyException
 from spotipy.oauth2 import SpotifyOAuth
 
@@ -50,6 +52,23 @@ class SpotifyHandler:
         except SpotifyException as e:
             self.handle_exception(e)
             return None
+
+    def get_playlist(self, playlist_id: str) -> Dict[str, any]:
+        try:
+            return self.user_sp.playlist(playlist_id)
+        except SpotifyException as e:
+            self.handle_exception(e)
+            return None
+
+    def get_playlists_by_ids(self, playlists_ids: List[str]) -> List[Dict[str, any]]:
+        user_playlists: List[Dict[str, any]] = []
+
+        for playlist_id in playlists_ids:
+            playlist = self.get_playlist(playlist_id)
+            if playlist:
+                user_playlists.append(playlist)
+
+        return user_playlists
 
     def get_user_playlists(self, offset: int = 0, limit: int = 50) -> List[Dict[str, any]]:
         user_playlists: List[Dict[str, any]] = []
