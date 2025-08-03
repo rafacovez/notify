@@ -1,6 +1,10 @@
 # Notify
 
-Notify is a **Telegram bot** that allows you to manage your playlist notifications and receive updates whenever there are changes to your favorite playlists on Spotify. The name **Notify** comes from its core purpose: to **notify** users about updates to their chosen Spotify playlists. While the playlist update notification feature is still in development to deliver the best possible result, the bot already offers a range of features to help you interact with your Spotify data.
+Notify is a **Telegram bot** that allows you to manage your playlist notifications and receive updates whenever there are changes to your favorite playlists on Spotify. The name **Notify** comes from its core purpose: to **notify** users about updates to their chosen Spotify playlists. 
+
+🎉 The playlist notification feature is now available! Notify checks for updates every 30 minutes and sends alerts directly to your Telegram when something changes.
+
+While the playlist update notification feature will continue to evolve for even better performance and flexibility, the bot already offers a range of features to help you interact with your Spotify data.
 
 ---
 
@@ -17,7 +21,7 @@ Please note that the Notify app is currently in development mode, and as a resul
 
 ## Getting Started
 
-To use the bot, you can either start a conversation with the [Notify Bot](https://t.me/playlistNotificationBot) link or by searching for `playlistNotificationBot` in your Telegram app search bar.
+To use the bot, you can either start a conversation with the [Notify Bot](https://t.me/playlistNotificationBot) link or by searching for `playlistNotificationBot` in your Telegram app search bar. You can also visit its [webpage](https://notify.covez.net).
 
 ---
 
