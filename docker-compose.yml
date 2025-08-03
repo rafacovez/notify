@@ -6,8 +6,5 @@ services:
       context: .
       target: prod
     volumes:
-      - db-data:/code/data
+      - /mnt/user/appdata/mybot/data:/code/data
     restart: unless-stopped
-
-volumes:
-  db-data:
