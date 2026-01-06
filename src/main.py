@@ -12,13 +12,18 @@ from api.services.database_service import DatabaseHandler
 from api.services.spotify_service import SpotifyHandler
 from bot.telegram_bot import NotifyTelegramBot
 from config.config import (
-    BOT_API_TOKEN,
-    NOTIFY_DB,
-    SERVER_HOST,
-    SERVER_PORT,
-    REDIRECT_URI,
+    TELEGRAM_BOT_API_TOKEN,
+    TELEGRAM_ADMIN_USER_IDS,
     SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET,
+    SPOTIFY_SCOPE,
+    REDIRECT_URI,
+    SERVER_HOST,
+    SERVER_PORT,
+    DB_NAME,
+    MAX_NOTIFY_PLAYLISTS_PER_USER,
+    REFRESH_INTERVAL_SECONDS,
+    COMMAND_COOLDOWN_SECONDS,
 )
 
 
@@ -133,19 +138,25 @@ def shutdown_handler(sig, frame):
 def main():
     signal.signal(signal.SIGINT, shutdown_handler)
 
-    database_handler = DatabaseHandler(NOTIFY_DB)
+    database_handler = DatabaseHandler(DB_NAME)
+
     spotify_handler = SpotifyHandler(
         client_id=SPOTIFY_CLIENT_ID,
         client_secret=SPOTIFY_CLIENT_SECRET,
         redirect_uri=REDIRECT_URI,
-        scope="user-read-private user-read-currently-playing user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative user-library-read",
+        scope=SPOTIFY_SCOPE,
     )
 
     bot = NotifyTelegramBot(
-        bot_token=BOT_API_TOKEN,
+        bot_token=TELEGRAM_BOT_API_TOKEN,
+        admin_user_ids=TELEGRAM_ADMIN_USER_IDS,
+        max_playlists_per_user=MAX_NOTIFY_PLAYLISTS_PER_USER,
+        refresh_interval_seconds=REFRESH_INTERVAL_SECONDS,
+        command_cooldown_seconds=COMMAND_COOLDOWN_SECONDS,
         database=database_handler,
         spotify=spotify_handler,
     )
+
     server = Server(bot)
 
     server_thread = threading.Thread(target=server.start, daemon=True)

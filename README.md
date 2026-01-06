@@ -1,6 +1,6 @@
 # Notify
 
-Notify is a **Telegram bot** that allows you to manage your playlist notifications and receive updates whenever there are changes to your favorite playlists on Spotify. The name **Notify** comes from its core purpose: to **notify** users about updates to their chosen Spotify playlists. 
+Notify is a **Telegram bot** that allows you to manage your playlist notifications and receive updates whenever there are changes to your favorite playlists on Spotify. The name **Notify** comes from its core purpose: to **notify** users about updates to their chosen Spotify playlists.
 
 🎉 The playlist notification feature is now available! Notify checks for updates every 30 minutes and sends alerts directly to your Telegram when something changes.
 
@@ -51,7 +51,7 @@ cd notify
    SERVER_HOST=0.0.0.0
    SERVER_PORT=80
    REDIRECT_URI=http://your-domain.com/callback
-   NOTIFY_DB=/app/data/notify.db
+   DB_NAME=/app/data/notify.db
    ```
 
    - **`SERVER_PORT`**: By default, this is set to `80` inside the Docker container. If you map it to a different port on your host (e.g., `8080`), update the `REDIRECT_URI` accordingly.

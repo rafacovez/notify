@@ -6,10 +6,31 @@ dotenv_path = os.path.join(os.path.dirname(__file__), ".env.local")
 
 load_dotenv(dotenv_path)
 
-BOT_API_TOKEN = os.getenv("BOT_API_TOKEN")
+TELEGRAM_BOT_API_TOKEN = os.getenv("TELEGRAM_BOT_API_TOKEN")
+TELEGRAM_ADMIN_USER_IDS = [
+    i.strip().lstrip("@").lower()
+    for i in os.getenv("TELEGRAM_ADMIN_USER_IDS", "").split(",")
+    if i.strip()
+]
+
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("REDIRECT_URI")
-SERVER_HOST = os.getenv("SERVER_HOST")
-SERVER_PORT = os.getenv("SERVER_PORT")
-NOTIFY_DB = os.getenv("NOTIFY_DB")
+SPOTIFY_SCOPE = (
+    os.getenv(
+        "SPOTIFY_SCOPE",
+        "user-read-private user-read-currently-playing user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative user-library-read",
+    )
+    .strip('"')
+    .strip("'")
+)
+
+REDIRECT_URI = os.getenv("REDIRECT_URI", "http://127.0.0.1:8080/callback")
+
+SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
+SERVER_PORT = os.getenv("SERVER_PORT", 80)
+
+DB_NAME = os.getenv("DB_NAME", "notify_beta.db")
+
+MAX_NOTIFY_PLAYLISTS_PER_USER = int(os.getenv("MAX_NOTIFY_PLAYLISTS_PER_USER", 3))
+REFRESH_INTERVAL_SECONDS = int(os.getenv("REFRESH_INTERVAL_SECONDS", 1800))
+COMMAND_COOLDOWN_SECONDS = int(os.getenv("COMMAND_COOLDOWN_SECONDS", 5))
