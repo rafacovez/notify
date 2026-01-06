@@ -24,10 +24,11 @@ SPOTIFY_SCOPE = (
     .strip("'")
 )
 
-REDIRECT_URI = os.getenv("REDIRECT_URI", "http://127.0.0.1:8080/callback")
+HOST_ADDRESS = os.getenv("HOST_ADDRESS", "http://127.0.0.1")
+HOST_PORT = int(os.getenv("HOST_PORT", 8080))
 
-SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
-SERVER_PORT = os.getenv("SERVER_PORT", 80)
+CONTAINER_HOST = os.getenv("CONTAINER_HOST", "0.0.0.0")
+CONTAINER_PORT = int(os.getenv("CONTAINER_PORT", 80))
 
 DB_NAME = os.getenv("DB_NAME", "notify_beta.db")
 

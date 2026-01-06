@@ -1,0 +1,6 @@
+services:
+  bot:
+    build:
+      target: dev
+    volumes:
+      - .:/code

@@ -1,152 +1,202 @@
 # Notify
 
-Notify is a **Telegram bot** that allows you to manage your playlist notifications and receive updates whenever there are changes to your favorite playlists on Spotify. The name **Notify** comes from its core purpose: to **notify** users about updates to their chosen Spotify playlists.
+A modular, containerized Telegram bot for Spotify playlist tracking and personal listening statistics.
 
-🎉 The playlist notification feature is now available! Notify checks for updates every 30 minutes and sends alerts directly to your Telegram when something changes.
+![Notify's website homepage](homepage.png)
 
-While the playlist update notification feature will continue to evolve for even better performance and flexibility, the bot already offers a range of features to help you interact with your Spotify data.
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Technology Stack](#technology-stack)
+- [Project Structure](#project-structure)
+- [Environment Configuration](#environment-configuration)
+  - [Environment Variables](#environment-variables)
+- [Docker & Containerization](#docker--containerization)
+  - [Multi-Stage Dockerfile](#multi-stage-dockerfile)
+  - [Docker Compose](#docker-compose)
+  - [Persistence](#persistence)
+- [Developer Experience](#developer-experience)
+- [Running the Project](#running-the-project)
+  - [Production Mode](#production-mode)
+  - [Development Mode](#development-mode)
+- [Roadmap](#roadmap)
+- [License](#license)
 
 ---
 
-## Disclaimer: Notify App is in Development Mode
+## Project Overview
 
-Please note that the Notify app is currently in development mode, and as a result, you won't be able to use it directly by visiting [https://t.me/playlistNotificationBot](https://t.me/playlistNotificationBot) without reaching out to me first.
+**Notify** is an open-source Telegram bot designed to monitor Spotify playlists and provide personalized listening insights. It detects playlist changes (track additions and removals) and generates listening statistics such as Top Tracks across short, medium, and long-term periods.
 
-### Usage Instructions:
-
-1. If you are interested in using the Notify app, contact me to be manually added to the whitelist. You can reach out to me through **adanescollante@gmail.com** to request access.
-2. Once you have contacted me and your request has been approved, you will receive further instructions on how to access and use the Notify app.
+The project emphasizes clean separation of concerns, service-oriented design, and full containerization to support both local development and future production deployments.
 
 ---
 
-## Getting Started
+## Features
 
-To use the bot, you can either start a conversation with the [Notify Bot](https://t.me/playlistNotificationBot) link or by searching for `playlistNotificationBot` in your Telegram app search bar. You can also visit its [webpage](https://notify.covez.net).
+- 🎶 Track Spotify playlist additions and removals
+- 📊 View personal Spotify listening statistics
+- 🤖 Telegram-based command interface
+- 🔐 Admin-restricted sensitive commands
+- 🐳 Fully Dockerized with multi-stage builds
+- 🔁 Hot-reloading development environment
 
 ---
 
-## Running Notify with Docker
+## Architecture
 
-Notify is now **Dockerized**, making it easy to run and deploy. Follow these steps to set it up:
+Notify follows a **service-oriented and modular architecture**:
 
-### 1. Clone the Repository
+- Bot logic is isolated from API and persistence layers
+- Spotify integration and database access are abstracted behind service interfaces
+- Configuration is centralized and environment-driven
 
-```bash
-git clone https://github.com/your-repo/notify.git
-cd notify
+This structure allows the project to scale in complexity without becoming tightly coupled or difficult to maintain.
+
+---
+
+## Technology Stack
+
+- **Language:** [Python](https://www.python.org/doc/) 3.13
+- **Telegram Bot:** `pyTelegramBotAPI` [(Telebot)](https://github.com/eternnoir/pyTelegramBotAPI)
+- **Spotify API:** [Spotipy](https://github.com/spotipy-dev/spotipy)
+- **Web Server:** [Flask](https://github.com/pallets/flask) (OAuth2 callback handling)
+- **Database:** [SQLite](https://sqlite.org/docs.html)
+- **Containerization:** [Docker](https://docs.docker.com/), [Docker Compose](https://docs.docker.com/compose/)
+- **Dev Environment:** [VS Code Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers)
+
+---
+
+## Environment Configuration
+
+All runtime configuration is managed through environment variables loaded from a dedicated file:
+
+```text
+src/config/.env.local
 ```
 
-### 2. Set Up Environment Variables
+This file is required for both local execution and containerized deployments.
+Keeping configuration centralized ensures consistency across development, staging, and production environments.
 
-1. Copy the `.env.example` file to `.env.local`:
-   ```bash
-   cp .env.example .env.local
-   ```
-2. Open `.env.local` and fill in the required values:
+---
 
-   ```plaintext
-   BOT_API_TOKEN=your-telegram-bot-token
-   SPOTIFY_CLIENT_ID=your-spotify-client-id
-   SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
-   SERVER_HOST=0.0.0.0
-   SERVER_PORT=80
-   REDIRECT_URI=http://your-domain.com/callback
-   DB_NAME=/app/data/notify.db
-   ```
+## Docker & Containerization
 
-   - **`SERVER_PORT`**: By default, this is set to `80` inside the Docker container. If you map it to a different port on your host (e.g., `8080`), update the `REDIRECT_URI` accordingly.
-   - **`REDIRECT_URI`**: This must match the callback URL set in your Spotify Developer Dashboard.
+Notify is fully containerized using Docker, with an emphasis on reproducibility, minimal runtime images, and a clean separation between development and production environments.
 
-### 3. Build the Docker Image
+---
 
-```bash
-docker build -t notify-bot .
+### Multi-Stage Dockerfile
+
+The project uses an Alpine-based **multi-stage Docker build**:
+
+- **base**  
+  Provides a shared Python 3.13 runtime and common system dependencies.
+
+- **dev**  
+  Extends the base image with development tooling and `watchdog`, enabling hot-reloading when source files change.
+
+- **prod**  
+  Produces a lean runtime image with all build-time dependencies (such as `gcc` and `musl-dev`) removed to reduce image size and attack surface.
+
+This structure ensures fast iteration during development while keeping production images small and secure.
+
+---
+
+### Docker Compose
+
+Docker Compose is used for orchestration and runtime configuration:
+
+- Environment variables are injected from `src/config/.env.local`
+- Ports are mapped dynamically using variable substitution
+- Multiple compose files can be layered to switch behavior by environment
+
+Example port mapping:
+
+```yaml
+ports:
+  - "${HOST_PORT}:${CONTAINER_PORT}"
 ```
 
-### 4. Run the Docker Container
+---
 
-Map the container's port `80` to a port on your host (e.g., `8080`):
+### Persistence
 
-```bash
-docker run -p 8080:80 --env-file .env.local notify-bot
+Local persistence is handled through a volume mount:
+
+```
+./data  →  /code/data
 ```
 
-- **`-p 8080:80`**: Maps port `80` inside the container to port `8080` on your host.
-- **`--env-file .env.local`**: Loads environment variables from `.env.local`.
-
-### 5. Access the Bot
-
-- If running locally, access the bot at:
-  ```plaintext
-  http://localhost:8080
-  ```
-- If running on a server, replace `localhost` with your server's IP or domain.
+This ensures the SQLite database persists across container restarts and rebuilds, making it suitable for development and testing workflows.
 
 ---
 
-## Port Configuration
+## Developer Experience
 
-- **Inside the Container**: The app runs on port `80` by default (set in `.env.local`).
-- **On the Host**: Map the container's port `80` to any available port on your host (e.g., `8080`).
+Notify includes a **VS Code Dev Container** configuration designed to provide a fast and consistent onboarding experience for contributors:
 
-#### Example:
+- A fully configured Python 3.13 development environment
+- Preinstalled system dependencies and recommended VS Code extensions
+- Automatic port forwarding based on environment variables
+- Injection of `src/config/.env.local` into the container shell
+- Hot-reloading enabled via the development Docker target
 
-- If you map port `80` in the container to port `8080` on the host:
-
-  ```bash
-  docker run -p 8080:80 --env-file .env.local notify-bot
-  ```
-
-  - Access the bot at `http://localhost:8080`.
-
-- If you map port `80` in the container to port `80` on the host:
-  ```bash
-  docker run -p 80:80 --env-file .env.local notify-bot
-  ```
-  - Access the bot at `http://localhost`.
+This setup allows developers to open the repository in VS Code and start working immediately, without manual environment configuration.
 
 ---
 
-## Dependencies
+## Running the Project
 
-This project is built using the following libraries and tools:
-
-- [Telebot](https://github.com/eternnoir/pyTelegramBotAPI) - A Python wrapper for the Telegram Bot API.
-- [Spotipy](https://spotipy.readthedocs.io/) - A lightweight Python library for the Spotify Web API.
-- [sqlite3](https://docs.python.org/3/library/sqlite3.html) - A built-in Python module for working with SQLite databases.
-- [Docker](https://www.docker.com) - A platform for containerizing applications.
+The application can be executed in two distinct modes, depending on whether stability or rapid iteration is the priority.
 
 ---
 
-## Contributing
+### Production Mode
 
-Contributions to this project are welcome! If you're interested in contributing, please follow these guidelines:
+Build and run the optimized production container in detached mode:
 
-1. Fork the repository and create your branch.
-2. Make your changes and ensure they adhere to the code style and best practices.
-3. Write clear and concise commit messages.
-4. Test your changes thoroughly.
-5. Submit a pull request with a detailed description of the changes you made.
+```bash
+docker compose up --build -d
+```
+
+### Development Mode
+
+Run the application with hot-reloading enabled by combining the base and development compose files:
+
+```bash
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.dev.yml \
+  up --build
+```
+
+This activates the dev Docker target and watches the source code for changes in real time, making it ideal for active development.
+
+---
+
+## Roadmap
+
+- 🗄️ Migration from SQLite to PostgreSQL  
+  Replace the local SQLite database with PostgreSQL to support scalability, concurrency, and production-grade persistence.
+
+- 👥 Multi-user support  
+  Introduce per-user Spotify authentication and data isolation, enabling multiple Telegram users to interact with the bot independently.
+
+- 🔔 Configurable notifications  
+  Allow users to customize which playlists are tracked, how often checks occur, and how notifications are delivered.
+
+- 📈 Extended analytics  
+  Expand listening statistics with richer historical insights and comparative trends over time.
+
+- 🧪 Quality & automation  
+  Improve test coverage and introduce a CI pipeline for linting, testing, and container validation.
 
 ---
 
 ## License
 
-This project is licensed under the terms of the [LICENSE](LICENSE) file. Please refer to the license file for more information.
-
----
-
-## Resources
-
-Here are some resources to help you get started:
-
-- [Telegram Bot API Documentation](https://core.telegram.org/bots/api)
-- [Spotipy Documentation](https://spotipy.readthedocs.io/en/latest/)
-- [SQLite Documentation](https://www.sqlite.org/docs.html)
-- [Docker Documentation](https://docs.docker.com/)
-
-If you have any questions or need assistance, feel free to reach out.
-
----
-
-This updated documentation reflects the Docker setup, port configuration, and the removal of DigitalOcean. It also clarifies the bot's purpose and provides clear instructions for running the bot locally or on a server. Let me know if you need further adjustments!
+This project is licensed under the MIT License.  
+See the `LICENSE` file for details.

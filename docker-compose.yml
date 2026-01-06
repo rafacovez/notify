@@ -1,10 +1,12 @@
-version: "3.9"
-
 services:
   bot:
     build:
       context: .
       target: prod
+    env_file:
+      - ./src/config/.env.local
+    ports:
+      - "${HOST_PORT:-8080}:${CONTAINER_PORT:-80}"
     volumes:
-      - /mnt/user/appdata/mybot/data:/code/data
+      - ./data:/code/data
     restart: unless-stopped

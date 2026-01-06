@@ -424,10 +424,10 @@ class NotifyTelegramBot(threading.Thread):
                     self.database.get_notify_playlists_by_user(self.user_id)
                 )
 
-                if notify_count >= 3:
+                if notify_count >= self.max_playlists_per_user:
                     self.bot.send_message(
                         self.chat_id,
-                        "You can only track up to 3 playlists at a time. Please remove one before adding another.",
+                        f"You can only track up to {self.max_playlists_per_user} playlists at a time. Please remove one before adding another.",
                     )
                 else:
                     self.database.add_notify(
@@ -566,7 +566,7 @@ class NotifyTelegramBot(threading.Thread):
                 )
             except Exception as e:
                 print(f"Error checking playlists: {e}")
-            time.sleep(1800)  # 30 minutos = 1800 segundos
+            time.sleep(self.refresh_interval_seconds)
 
     def start_listening(self) -> None:
         try:

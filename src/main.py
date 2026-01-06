@@ -17,28 +17,31 @@ from config.config import (
     SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET,
     SPOTIFY_SCOPE,
-    REDIRECT_URI,
-    SERVER_HOST,
-    SERVER_PORT,
+    HOST_ADDRESS,
+    HOST_PORT,
+    CONTAINER_HOST,
+    CONTAINER_PORT,
     DB_NAME,
     MAX_NOTIFY_PLAYLISTS_PER_USER,
     REFRESH_INTERVAL_SECONDS,
     COMMAND_COOLDOWN_SECONDS,
 )
 
+REDIRECT_URI = f"{HOST_ADDRESS}:{HOST_PORT}/callback"
+
 
 class Server(threading.Thread):
     def __init__(
         self,
         bot: NotifyTelegramBot,
-        server_host: str = SERVER_HOST,
-        server_port: int = SERVER_PORT,
+        CONTAINER_HOST: str = CONTAINER_HOST,
+        CONTAINER_PORT: int = CONTAINER_PORT,
     ) -> None:
         threading.Thread.__init__(self)
         self.kill_received = False
         self.app: Flask = Flask(__name__)
-        self.server_host: str = server_host
-        self.server_port: int = server_port
+        self.CONTAINER_HOST: str = CONTAINER_HOST
+        self.CONTAINER_PORT: int = CONTAINER_PORT
         self.bot: NotifyTelegramBot = bot
         self.database: DatabaseHandler = self.bot.database
         self.spotify: SpotifyHandler = self.bot.spotify
@@ -120,7 +123,7 @@ class Server(threading.Thread):
     def start_listening(self) -> None:
         try:
             print(f"Server is up and running!")
-            self.app.run(host=self.server_host, port=self.server_port)
+            self.app.run(host=self.CONTAINER_HOST, port=self.CONTAINER_PORT)
 
         except Exception as e:
             print(f"Error trying to run server: {e}")
