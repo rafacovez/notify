@@ -5,5 +5,5 @@ __pycache__/
 db.sqlite3
 *.log
 .venv
-.env.local
+.env
 .DS_Store

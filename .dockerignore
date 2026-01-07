@@ -1,7 +1,7 @@
 # Ignore Python virtual environment
 venv/
-.env/
-.env*/
+.env.local/
+.env.local*/
 
 # Ignore Python cache and compiled files
 __pycache__/
@@ -21,8 +21,7 @@ __pycache__/
 .gitignore
 
 # Ignore local environment files
-.env.local
-.env.*.local
+.env
 
 # Ignore logs and local data
 logs/

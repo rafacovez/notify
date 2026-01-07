@@ -16,12 +16,20 @@ class NotifyTelegramBot(threading.Thread):
     def __init__(
         self,
         bot_token: str,
+        admin_user_ids: List[str],
+        max_playlists_per_user: int,
+        refresh_interval_seconds: int,
+        command_cooldown_seconds: int,
         database: DatabaseHandler,
         spotify: SpotifyHandler,
     ) -> None:
         threading.Thread.__init__(self)
         self.kill_received = False
         self.bot_token: str = bot_token
+        self.admin_user_ids: List[str] = admin_user_ids
+        self.max_playlists_per_user: int = max_playlists_per_user
+        self.refresh_interval_seconds: int = refresh_interval_seconds
+        self.command_cooldown_seconds: int = command_cooldown_seconds
         self.bot: TeleBot = TeleBot(self.bot_token)
         self.database: DatabaseHandler = database
         self.spotify: SpotifyHandler = spotify
@@ -30,7 +38,10 @@ class NotifyTelegramBot(threading.Thread):
         self.message: Optional[Message] = None
         self.callback: str = None
         self.bot.register_message_handler(self.handle_message)
-        self.bot.register_callback_query_handler(self.handle_callback, func=lambda call: call.data)
+        self.bot.register_callback_query_handler(
+            self.handle_callback, func=lambda call: call.data
+        )
+        self.admins = self.admin_user_ids
         self.commands: Dict[str, Dict[str, Union[Callable[..., Any], str]]] = {
             "start": {"func": self.help, "desc": "Starts Notify"},
             "help": {
@@ -106,7 +117,7 @@ class NotifyTelegramBot(threading.Thread):
 
         parts = self.callback.split(":")
         action = parts[0]
-        
+
         if len(parts) >= 3 and parts[1] in ("next", "back"):
             try:
                 offset = int(parts[2])
@@ -114,12 +125,12 @@ class NotifyTelegramBot(threading.Thread):
                 self.bot.edit_message_reply_markup(
                     chat_id=self.chat_id,
                     message_id=call.message.message_id,
-                    reply_markup=markup
+                    reply_markup=markup,
                 )
             except (IndexError, ValueError) as e:
                 print(f"Pagination error: {e}")
             return
-        
+
         elif action == "add_playlist" and len(parts) >= 2:
             self.add_notify(parts[1])
 
@@ -128,7 +139,6 @@ class NotifyTelegramBot(threading.Thread):
 
         else:
             print(f"Unknown or malformed action: {self.callback}")
-
 
     def determine_function(self) -> None:
         command: str = self.message.text
@@ -152,7 +162,7 @@ class NotifyTelegramBot(threading.Thread):
                     command_func: function = self.commands[
                         command_item.command.strip("/")
                     ]["func"]
-                    
+
                     try:
                         command_func()
                     except Exception as e:
@@ -213,7 +223,7 @@ class NotifyTelegramBot(threading.Thread):
 
     def help(self) -> None:
         commands: str = ""
-        
+
         for command_item in self.command_list:
             commands += f"\n {command_item.command}: {command_item.description}"
 
@@ -228,9 +238,7 @@ class NotifyTelegramBot(threading.Thread):
         track_name: str = last_played["name"]
         track_url: str = last_played["external_urls"]["spotify"]
         artist_name: str = last_played["artists"][0]["name"]
-        artist_url: str = last_played["artists"][0][
-            "external_urls"
-        ]["spotify"]
+        artist_url: str = last_played["artists"][0]["external_urls"]["spotify"]
 
         self.bot.send_message(
             self.chat_id,
@@ -290,7 +298,8 @@ class NotifyTelegramBot(threading.Thread):
             track["artists"][0]["name"] for track in recommended_tracks
         ]
         recommended_artists_urls: List[str] = [
-            track["artists"][0]["external_urls"]["spotify"] for track in recommended_tracks
+            track["artists"][0]["external_urls"]["spotify"]
+            for track in recommended_tracks
         ]
         recommended_message: str = ""
 
@@ -316,9 +325,7 @@ class NotifyTelegramBot(threading.Thread):
         track_name: str = throwback["name"]
         track_url: str = throwback["external_urls"]["spotify"]
         artist_name: str = throwback["artists"][0]["name"]
-        artist_url: str = throwback["artists"][0][
-            "external_urls"
-        ]["spotify"]
+        artist_url: str = throwback["artists"][0]["external_urls"]["spotify"]
 
         self.bot.send_message(
             self.chat_id,
@@ -326,14 +333,16 @@ class NotifyTelegramBot(threading.Thread):
             parse_mode="HTML",
         )
 
-    def gen_playlist_markup(self, callback_action: str, offset: int = 0, limit: int = 4) -> InlineKeyboardMarkup:
+    def gen_playlist_markup(
+        self, callback_action: str, offset: int = 0, limit: int = 4
+    ) -> InlineKeyboardMarkup:
         self.callback: str = callback_action
 
         markup: InlineKeyboardMarkup = InlineKeyboardMarkup()
         markup.row_width = 2
 
         playlists = self.spotify.get_user_playlists(offset=offset, limit=limit + 1)
-        
+
         theres_more: bool = len(playlists) > limit
         displayed_playlists: List[Dict[str, any]] = playlists[:limit]
 
@@ -352,18 +361,22 @@ class NotifyTelegramBot(threading.Thread):
             )
 
         markup.add(*playlist_buttons)
-        
+
         nav_buttons = []
 
         if offset > 0:
             nav_buttons.append(
-                InlineKeyboardButton("⬅️ Back", callback_data=f"{callback_action}:back:{offset - limit}")
+                InlineKeyboardButton(
+                    "⬅️ Back", callback_data=f"{callback_action}:back:{offset - limit}"
+                )
             )
         if theres_more:
             nav_buttons.append(
-                InlineKeyboardButton("➡️ Next", callback_data=f"{callback_action}:next:{offset + limit}")
+                InlineKeyboardButton(
+                    "➡️ Next", callback_data=f"{callback_action}:next:{offset + limit}"
+                )
             )
-            
+
         if nav_buttons:
             if len(nav_buttons) == 1:
                 markup.row(nav_buttons[0])
@@ -407,12 +420,14 @@ class NotifyTelegramBot(threading.Thread):
                     "You're already tracking this playlist.",
                 )
             else:
-                notify_count: int = len(self.database.get_notify_playlists_by_user(self.user_id))
+                notify_count: int = len(
+                    self.database.get_notify_playlists_by_user(self.user_id)
+                )
 
-                if notify_count >= 3:
+                if notify_count >= self.max_playlists_per_user:
                     self.bot.send_message(
                         self.chat_id,
-                        "You can only track up to 3 playlists at a time. Please remove one before adding another.",
+                        f"You can only track up to {self.max_playlists_per_user} playlists at a time. Please remove one before adding another.",
                     )
                 else:
                     self.database.add_notify(
@@ -458,7 +473,9 @@ class NotifyTelegramBot(threading.Thread):
             )
 
     def show_notify(self) -> None:
-        playlists_ids: List[str] = self.database.get_notify_playlists_by_user(self.user_id)
+        playlists_ids: List[str] = self.database.get_notify_playlists_by_user(
+            self.user_id
+        )
 
         if not playlists_ids:
             self.bot.send_message(
@@ -466,7 +483,9 @@ class NotifyTelegramBot(threading.Thread):
                 "You're not tracking any playlists.",
             )
         else:
-            playlists: List[Dict[str, any]] = self.spotify.get_playlists_by_ids(playlists_ids)
+            playlists: List[Dict[str, any]] = self.spotify.get_playlists_by_ids(
+                playlists_ids
+            )
 
             if not playlists:
                 self.bot.send_message(
@@ -492,13 +511,17 @@ class NotifyTelegramBot(threading.Thread):
 
                 if users:
                     for user in users:
-                        notify_playlists_ids: List[str] = self.database.get_notify_playlists_by_user(user)
+                        notify_playlists_ids: List[str] = (
+                            self.database.get_notify_playlists_by_user(user)
+                        )
 
                         if notify_playlists_ids:
-                            self.spotify.refresh_token = self.database.get_refresh_token(
-                                    user
-                                )
-                            self.spotify.access_token = self.spotify.refresh_access_token()
+                            self.spotify.refresh_token = (
+                                self.database.get_refresh_token(user)
+                            )
+                            self.spotify.access_token = (
+                                self.spotify.refresh_access_token()
+                            )
                             self.database.store_access_token(
                                 self.spotify.access_token, user
                             )
@@ -507,12 +530,18 @@ class NotifyTelegramBot(threading.Thread):
                             )
 
                             for playlist_id in notify_playlists_ids:
-                                playlist: Dict[str, any] = self.spotify.get_playlist(playlist_id)
+                                playlist: Dict[str, any] = self.spotify.get_playlist(
+                                    playlist_id
+                                )
 
                                 if playlist is not None:
                                     current_snapshot_id: str = playlist["snapshot_id"]
-                                    stored_snapshot_id: str = self.database.get_notify_snapshot(user, playlist_id)
-                                    
+                                    stored_snapshot_id: str = (
+                                        self.database.get_notify_snapshot(
+                                            user, playlist_id
+                                        )
+                                    )
+
                                     if current_snapshot_id != stored_snapshot_id:
                                         self.database.update_notify_snapshot(
                                             telegram_user_id=user,
@@ -532,10 +561,12 @@ class NotifyTelegramBot(threading.Thread):
                 else:
                     print("No users found in the database.")
 
-                print("Ran Notify changes check at: ", time.strftime("%Y-%m-%d %H:%M:%S"))
+                print(
+                    "Ran Notify changes check at: ", time.strftime("%Y-%m-%d %H:%M:%S")
+                )
             except Exception as e:
                 print(f"Error checking playlists: {e}")
-            time.sleep(1800)  # 30 minutos = 1800 segundos
+            time.sleep(self.refresh_interval_seconds)
 
     def start_listening(self) -> None:
         try:

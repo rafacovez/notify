@@ -11,14 +11,19 @@ from telebot.types import *
 from api.services.database_service import DatabaseHandler
 from api.services.spotify_service import SpotifyHandler
 from bot.telegram_bot import NotifyTelegramBot
-from config.config import (
-    BOT_API_TOKEN,
-    NOTIFY_DB,
-    SERVER_HOST,
-    SERVER_PORT,
-    REDIRECT_URI,
+from config import (
+    TELEGRAM_BOT_API_TOKEN,
+    TELEGRAM_ADMIN_USER_IDS,
     SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET,
+    SPOTIFY_SCOPE,
+    REDIRECT_URI,
+    CONTAINER_HOST,
+    CONTAINER_PORT,
+    DB_NAME,
+    MAX_NOTIFY_PLAYLISTS_PER_USER,
+    REFRESH_INTERVAL_SECONDS,
+    COMMAND_COOLDOWN_SECONDS,
 )
 
 
@@ -26,14 +31,14 @@ class Server(threading.Thread):
     def __init__(
         self,
         bot: NotifyTelegramBot,
-        server_host: str = SERVER_HOST,
-        server_port: int = SERVER_PORT,
+        CONTAINER_HOST: str = CONTAINER_HOST,
+        CONTAINER_PORT: int = CONTAINER_PORT,
     ) -> None:
         threading.Thread.__init__(self)
         self.kill_received = False
         self.app: Flask = Flask(__name__)
-        self.server_host: str = server_host
-        self.server_port: int = server_port
+        self.CONTAINER_HOST: str = CONTAINER_HOST
+        self.CONTAINER_PORT: int = CONTAINER_PORT
         self.bot: NotifyTelegramBot = bot
         self.database: DatabaseHandler = self.bot.database
         self.spotify: SpotifyHandler = self.bot.spotify
@@ -115,7 +120,7 @@ class Server(threading.Thread):
     def start_listening(self) -> None:
         try:
             print(f"Server is up and running!")
-            self.app.run(host=self.server_host, port=self.server_port)
+            self.app.run(host=self.CONTAINER_HOST, port=self.CONTAINER_PORT)
 
         except Exception as e:
             print(f"Error trying to run server: {e}")
@@ -133,19 +138,25 @@ def shutdown_handler(sig, frame):
 def main():
     signal.signal(signal.SIGINT, shutdown_handler)
 
-    database_handler = DatabaseHandler(NOTIFY_DB)
+    database_handler = DatabaseHandler(DB_NAME)
+
     spotify_handler = SpotifyHandler(
         client_id=SPOTIFY_CLIENT_ID,
         client_secret=SPOTIFY_CLIENT_SECRET,
         redirect_uri=REDIRECT_URI,
-        scope="user-read-private user-read-currently-playing user-read-recently-played user-top-read playlist-read-private playlist-read-collaborative user-library-read",
+        scope=SPOTIFY_SCOPE,
     )
 
     bot = NotifyTelegramBot(
-        bot_token=BOT_API_TOKEN,
+        bot_token=TELEGRAM_BOT_API_TOKEN,
+        admin_user_ids=TELEGRAM_ADMIN_USER_IDS,
+        max_playlists_per_user=MAX_NOTIFY_PLAYLISTS_PER_USER,
+        refresh_interval_seconds=REFRESH_INTERVAL_SECONDS,
+        command_cooldown_seconds=COMMAND_COOLDOWN_SECONDS,
         database=database_handler,
         spotify=spotify_handler,
     )
+
     server = Server(bot)
 
     server_thread = threading.Thread(target=server.start, daemon=True)
