@@ -2,22 +2,36 @@
   "name": "notify-bot",
   "build": {
     "dockerfile": "../Dockerfile",
-    "target": "dev"
+    "target": "dev",
+    "context": ".."
   },
   "runArgs": [
+    "--name",
+    "notify-dev-container",
     "-p",
     "8080:80",
     "--env-file",
     "${localWorkspaceFolder}/src/config/.env.local"
   ],
-  "mounts": ["source=${localWorkspaceFolder}/src,target=/code/src,type=bind"],
+  "mounts": [
+    "source=${localWorkspaceFolder}/src,target=/code/src,type=bind",
+    "source=${localWorkspaceFolder}/data,target=/code/data,type=bind"
+  ],
   "workspaceFolder": "/code",
   "shutdownAction": "stopContainer",
   "postCreateCommand": "pip install --no-cache-dir --upgrade -r requirements.txt -r requirements-dev.txt",
-  "postStartCommand": "watchmedo auto-restart --pattern='*.py' --recursive -- python src/main.py",
+  "postStartCommand": "watchmedo auto-restart --directory=./src --pattern='*.py' --recursive -- python src/main.py",
   "customizations": {
     "vscode": {
-      "extensions": ["ms-python.python", "ms-python.vscode-pylance"]
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.analysis.extraPaths": ["/code/src"]
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-docker"
+      ]
     }
   },
   "remoteUser": "root"
