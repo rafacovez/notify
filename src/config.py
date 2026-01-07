@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 
-dotenv_path = os.path.join(os.path.dirname(__file__), ".env.local")
+dotenv_path = os.path.join(os.path.dirname(__file__), "../.env")
 
 load_dotenv(dotenv_path)
 
@@ -27,10 +27,12 @@ SPOTIFY_SCOPE = (
 HOST_ADDRESS = os.getenv("HOST_ADDRESS", "http://127.0.0.1")
 HOST_PORT = int(os.getenv("HOST_PORT", 8080))
 
-CONTAINER_HOST = os.getenv("CONTAINER_HOST", "0.0.0.0")
-CONTAINER_PORT = int(os.getenv("CONTAINER_PORT", 80))
+REDIRECT_URI = f"{HOST_ADDRESS}:{HOST_PORT}/callback"
 
-DB_NAME = os.getenv("DB_NAME", "notify_beta.db")
+CONTAINER_HOST = os.getenv("CONTAINER_HOST", "0.0.0.0")
+CONTAINER_PORT = int(os.getenv("CONTAINER_PORT", 8080))
+
+DB_NAME = os.getenv("DB_NAME", "notify")
 
 MAX_NOTIFY_PLAYLISTS_PER_USER = int(os.getenv("MAX_NOTIFY_PLAYLISTS_PER_USER", 3))
 REFRESH_INTERVAL_SECONDS = int(os.getenv("REFRESH_INTERVAL_SECONDS", 1800))

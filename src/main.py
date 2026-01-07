@@ -11,14 +11,13 @@ from telebot.types import *
 from api.services.database_service import DatabaseHandler
 from api.services.spotify_service import SpotifyHandler
 from bot.telegram_bot import NotifyTelegramBot
-from config.config import (
+from config import (
     TELEGRAM_BOT_API_TOKEN,
     TELEGRAM_ADMIN_USER_IDS,
     SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET,
     SPOTIFY_SCOPE,
-    HOST_ADDRESS,
-    HOST_PORT,
+    REDIRECT_URI,
     CONTAINER_HOST,
     CONTAINER_PORT,
     DB_NAME,
@@ -26,8 +25,6 @@ from config.config import (
     REFRESH_INTERVAL_SECONDS,
     COMMAND_COOLDOWN_SECONDS,
 )
-
-REDIRECT_URI = f"{HOST_ADDRESS}:{HOST_PORT}/callback"
 
 
 class Server(threading.Thread):
