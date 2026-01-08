@@ -10,3 +10,5 @@ services:
     volumes:
       - ./data:/code/data
     restart: unless-stopped
+    environment:
+      - PYTHONPATH=/code

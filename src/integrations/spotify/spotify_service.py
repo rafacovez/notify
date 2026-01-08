@@ -1,7 +1,5 @@
 from typing import *
 
-import re
-
 from spotipy import Spotify, SpotifyException
 from spotipy.oauth2 import SpotifyOAuth
 

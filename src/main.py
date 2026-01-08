@@ -4,12 +4,12 @@ import sys
 from typing import *
 
 import requests
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request
 from spotipy import Spotify
 from telebot.types import *
 
-from api.services.database_service import DatabaseHandler
-from api.services.spotify_service import SpotifyHandler
+from database.database_handler import DatabaseHandler
+from integrations.spotify.spotify_service import SpotifyHandler
 from bot.telegram_bot import NotifyTelegramBot
 from config import (
     TELEGRAM_BOT_API_TOKEN,
@@ -20,7 +20,7 @@ from config import (
     REDIRECT_URI,
     CONTAINER_HOST,
     CONTAINER_PORT,
-    DB_NAME,
+    POSTGRES_DB_NAME,
     MAX_NOTIFY_PLAYLISTS_PER_USER,
     REFRESH_INTERVAL_SECONDS,
     COMMAND_COOLDOWN_SECONDS,
@@ -92,10 +92,9 @@ class Server(threading.Thread):
 
                     # store the access token in the database
                     def update_table() -> None:
-                        self.database.cursor.execute(
-                            "INSERT INTO users (id, telegram_user_id, spotify_user_display, spotify_user_id, refresh_token, access_token) VALUES (?, ?, ?, ?, ?, ?)",
+                        self.database.execute(
+                            "INSERT INTO users (telegram_user_id, spotify_user_display, spotify_user_id, refresh_token, access_token) VALUES (?, ?, ?, ?, ?)",
                             (
-                                None,
                                 telegram_user_id,
                                 spotify_user_display,
                                 spotify_user_id,
@@ -138,7 +137,7 @@ def shutdown_handler(sig, frame):
 def main():
     signal.signal(signal.SIGINT, shutdown_handler)
 
-    database_handler = DatabaseHandler(DB_NAME)
+    database_handler = DatabaseHandler(POSTGRES_DB_NAME)
 
     spotify_handler = SpotifyHandler(
         client_id=SPOTIFY_CLIENT_ID,
