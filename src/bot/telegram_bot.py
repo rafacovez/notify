@@ -6,10 +6,10 @@ from typing import *
 from telebot import TeleBot
 from telebot.types import *
 
-from api.services.database_service import DatabaseHandler
-from api.services.spotify_service import SpotifyHandler
+from database.database_handler import DatabaseHandler
+from integrations.spotify.spotify_service import SpotifyHandler
 
-from api.helpers.spotify_utils import extract_spotify_id
+from integrations.spotify.spotify_utils import extract_spotify_id
 
 
 class NotifyTelegramBot(threading.Thread):
