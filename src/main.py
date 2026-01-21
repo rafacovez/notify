@@ -1,6 +1,7 @@
 import threading
 import signal
 import sys
+import time
 from typing import *
 
 import requests
@@ -11,6 +12,7 @@ from telebot.types import *
 from database.database_handler import DatabaseHandler
 from integrations.spotify.spotify_service import SpotifyHandler
 from bot.telegram_bot import NotifyTelegramBot
+import notifier
 from config import (
     TELEGRAM_BOT_API_TOKEN,
     TELEGRAM_ADMIN_USER_IDS,
@@ -22,7 +24,7 @@ from config import (
     CONTAINER_PORT,
     POSTGRES_DB_NAME,
     MAX_NOTIFY_PLAYLISTS_PER_USER,
-    REFRESH_INTERVAL_SECONDS,
+    NOTIFY_CHECK_INTERVAL_SECONDS,
     COMMAND_COOLDOWN_SECONDS,
 )
 
@@ -90,20 +92,14 @@ class Server(threading.Thread):
                     ]
                     spotify_user_id: str = spotify_sp.current_user()["id"]
 
-                    # store the access token in the database
-                    def update_table() -> None:
-                        self.database.execute(
-                            "INSERT INTO users (telegram_user_id, spotify_user_display, spotify_user_id, refresh_token, access_token) VALUES (?, ?, ?, ?, ?)",
-                            (
-                                telegram_user_id,
-                                spotify_user_display,
-                                spotify_user_id,
-                                refresh_token,
-                                access_token,
-                            ),
-                        )
-
-                    self.database.process(update_table)
+                    # store user
+                    self.database.add_user(
+                        telegram_user_id,
+                        spotify_user_display,
+                        spotify_user_id,
+                        refresh_token,
+                        access_token,
+                    )
 
                     return render_template("homepage.html", message="success")
 
@@ -113,9 +109,6 @@ class Server(threading.Thread):
             # handle any errors
             return render_template("homepage.html", message="error")
 
-    def __do_nothing(self) -> None:
-        pass
-
     def start_listening(self) -> None:
         try:
             print(f"Server is up and running!")
@@ -123,10 +116,6 @@ class Server(threading.Thread):
 
         except Exception as e:
             print(f"Error trying to run server: {e}")
-
-    def run(self):
-        while not self.kill_received:
-            self.start_listening()
 
 
 def shutdown_handler(sig, frame):
@@ -150,7 +139,7 @@ def main():
         bot_token=TELEGRAM_BOT_API_TOKEN,
         admin_user_ids=TELEGRAM_ADMIN_USER_IDS,
         max_playlists_per_user=MAX_NOTIFY_PLAYLISTS_PER_USER,
-        refresh_interval_seconds=REFRESH_INTERVAL_SECONDS,
+        notify_check_interval_seconds=NOTIFY_CHECK_INTERVAL_SECONDS,
         command_cooldown_seconds=COMMAND_COOLDOWN_SECONDS,
         database=database_handler,
         spotify=spotify_handler,
@@ -158,15 +147,22 @@ def main():
 
     server = Server(bot)
 
-    server_thread = threading.Thread(target=server.start, daemon=True)
-    server_thread.start()
+    flask_thread = threading.Thread(target=server.start_listening, daemon=True)
+    notifier_thread = threading.Thread(
+        target=notifier.start_notifier_loop,
+        args=(bot, database_handler, spotify_handler, NOTIFY_CHECK_INTERVAL_SECONDS),
+        daemon=True,
+    )
+    bot_thread = threading.Thread(target=bot.start_listening, daemon=True)
 
-    task_thread = threading.Thread(target=bot.notify_changes, daemon=True)
-    task_thread.start()
+    flask_thread.start()
+    notifier_thread.start()
+    bot_thread.start()
 
     try:
-        bot.start()
-    except KeyboardInterrupt:
+        while True:
+            time.sleep(1)
+    except (KeyboardInterrupt, SystemExit):
         shutdown_handler(None, None)
 
 

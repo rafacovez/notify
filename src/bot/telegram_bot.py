@@ -18,7 +18,7 @@ class NotifyTelegramBot(threading.Thread):
         bot_token: str,
         admin_user_ids: List[str],
         max_playlists_per_user: int,
-        refresh_interval_seconds: int,
+        notify_check_interval_seconds: int,
         command_cooldown_seconds: int,
         database: DatabaseHandler,
         spotify: SpotifyHandler,
@@ -28,7 +28,7 @@ class NotifyTelegramBot(threading.Thread):
         self.bot_token: str = bot_token
         self.admin_user_ids: List[str] = admin_user_ids
         self.max_playlists_per_user: int = max_playlists_per_user
-        self.refresh_interval_seconds: int = refresh_interval_seconds
+        self.notify_check_interval_seconds: int = notify_check_interval_seconds
         self.command_cooldown_seconds: int = command_cooldown_seconds
         self.bot: TeleBot = TeleBot(self.bot_token)
         self.database: DatabaseHandler = database
@@ -504,80 +504,10 @@ class NotifyTelegramBot(threading.Thread):
                     parse_mode="HTML",
                 )
 
-    def notify_changes(self) -> None:
-        while True:
-            try:
-                users: List[int] = self.database.fetch_telegram_users()
-
-                if users:
-                    for user in users:
-                        notify_playlists_ids: List[str] = (
-                            self.database.get_notify_playlists_by_user(user)
-                        )
-
-                        if notify_playlists_ids:
-                            self.spotify.refresh_token = (
-                                self.database.get_refresh_token(user)
-                            )
-                            self.spotify.access_token = (
-                                self.spotify.refresh_access_token()
-                            )
-                            self.database.store_access_token(
-                                self.spotify.access_token, user
-                            )
-                            self.spotify.user_sp = self.spotify.get_user_sp(
-                                self.spotify.access_token
-                            )
-
-                            for playlist_id in notify_playlists_ids:
-                                playlist: Dict[str, any] = self.spotify.get_playlist(
-                                    playlist_id
-                                )
-
-                                if playlist is not None:
-                                    current_snapshot_id: str = playlist["snapshot_id"]
-                                    stored_snapshot_id: str = (
-                                        self.database.get_notify_snapshot(
-                                            user, playlist_id
-                                        )
-                                    )
-
-                                    if current_snapshot_id != stored_snapshot_id:
-                                        self.database.update_notify_snapshot(
-                                            telegram_user_id=user,
-                                            playlist_id=playlist_id,
-                                            snapshot_id=current_snapshot_id,
-                                        )
-                                        self.bot.send_message(
-                                            user,
-                                            f"The playlist {playlist['name']} has been updated! Check it out: {playlist['external_urls']['spotify']}",
-                                        )
-                                else:
-                                    self.remove_notify(playlist_id, user)
-                                    self.bot.send_message(
-                                        user,
-                                        f"Some of the playlists you were tracking no longer exists. They will be removed from your tracking list.",
-                                    )
-                else:
-                    print("No users found in the database.")
-
-                print(
-                    "Ran Notify changes check at: ", time.strftime("%Y-%m-%d %H:%M:%S")
-                )
-            except Exception as e:
-                print(f"Error checking playlists: {e}")
-            time.sleep(self.refresh_interval_seconds)
-
     def start_listening(self) -> None:
         try:
             self.database.create_tables()
             self.bot.infinity_polling()
 
-            print("Notify started!")
-
         except Exception as e:
             print(f"Error starting bot: {e}")
-
-    def run(self):
-        while not self.kill_received:
-            self.start_listening()
