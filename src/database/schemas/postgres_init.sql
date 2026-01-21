@@ -1,4 +1,9 @@
-CREATE TYPE subscription_tier AS ENUM ('Free', 'Premium', 'Founder');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'subscription_tier') THEN
+        CREATE TYPE subscription_tier AS ENUM ('Free', 'Premium', 'Family', 'Student');
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,

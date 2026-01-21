@@ -2,7 +2,7 @@
 
 A modular, containerized Telegram bot for Spotify playlist tracking and personal listening statistics.
 
-![Notify's website homepage](homepage.png)
+![Notify's website homepage](/src/static/homepage.png)
 
 ## Table of Contents
 

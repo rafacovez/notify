@@ -54,9 +54,17 @@ class SpotifyHandler:
             self.handle_exception(e)
             return None
 
-    def get_playlist(self, playlist_id: str) -> Dict[str, any]:
+    def get_playlist(
+        self, user_sp: Spotify, playlist_id: str, fields: str = None
+    ) -> Dict[str, any]:
+        client: Spotify = user_sp if user_sp is not None else self.user_sp
+
+        if client is None:
+            print("Spotify client is not initialized.")
+            return None
+
         try:
-            return self.user_sp.playlist(playlist_id)
+            return client.playlist(playlist_id, fields=fields)
         except SpotifyException as e:
             self.handle_exception(e)
             return None

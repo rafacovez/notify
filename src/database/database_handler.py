@@ -122,6 +122,28 @@ class DatabaseHandler:
 
         self.process(logic)
 
+    def add_user(
+        self,
+        telegram_user_id: int,
+        spotify_user_display: str,
+        spotify_user_id: str,
+        refresh_token: str,
+        access_token: str,
+    ) -> None:
+        def logic() -> None:
+            self.execute(
+                "INSERT INTO users (telegram_user_id, spotify_user_display, spotify_user_id, refresh_token, access_token) VALUES (?, ?, ?, ?, ?)",
+                (
+                    telegram_user_id,
+                    spotify_user_display,
+                    spotify_user_id,
+                    refresh_token,
+                    access_token,
+                ),
+            )
+
+        self.process(logic)
+
     def user_exists(self, user: int) -> bool:
         def logic() -> bool:
             self.execute(
