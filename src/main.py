@@ -15,14 +15,13 @@ from bot.telegram_bot import NotifyTelegramBot
 import notifier
 from config import (
     TELEGRAM_BOT_API_TOKEN,
-    TELEGRAM_ADMIN_USER_IDS,
+    TELEGRAM_ADMIN_USERNAMES,
     SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET,
     SPOTIFY_SCOPE,
     REDIRECT_URI,
     CONTAINER_HOST,
     CONTAINER_PORT,
-    POSTGRES_DB_NAME,
     MAX_NOTIFY_PLAYLISTS_PER_USER,
     NOTIFY_CHECK_INTERVAL_SECONDS,
     COMMAND_COOLDOWN_SECONDS,
@@ -126,7 +125,7 @@ def shutdown_handler(sig, frame):
 def main():
     signal.signal(signal.SIGINT, shutdown_handler)
 
-    database_handler = DatabaseHandler(POSTGRES_DB_NAME)
+    database_handler = DatabaseHandler()
 
     spotify_handler = SpotifyHandler(
         client_id=SPOTIFY_CLIENT_ID,
@@ -137,7 +136,7 @@ def main():
 
     bot = NotifyTelegramBot(
         bot_token=TELEGRAM_BOT_API_TOKEN,
-        admin_user_ids=TELEGRAM_ADMIN_USER_IDS,
+        admin_user_ids=TELEGRAM_ADMIN_USERNAMES,
         max_playlists_per_user=MAX_NOTIFY_PLAYLISTS_PER_USER,
         notify_check_interval_seconds=NOTIFY_CHECK_INTERVAL_SECONDS,
         command_cooldown_seconds=COMMAND_COOLDOWN_SECONDS,

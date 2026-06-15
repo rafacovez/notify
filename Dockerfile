@@ -26,6 +26,4 @@ CMD ["watchmedo", "auto-restart", "--directory=./src", "--pattern=*.py", "--recu
 
 # --- PROD STAGE ---
 FROM base AS prod
-# Create data dir here so it exists even if volume mount fails
-RUN mkdir -p /code/data
 CMD ["python", "src/main.py"]

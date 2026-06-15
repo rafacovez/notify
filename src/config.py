@@ -7,9 +7,9 @@ dotenv_path = os.path.join(os.path.dirname(__file__), "../.env")
 load_dotenv(dotenv_path)
 
 TELEGRAM_BOT_API_TOKEN = os.getenv("TELEGRAM_BOT_API_TOKEN")
-TELEGRAM_ADMIN_USER_IDS = [
+TELEGRAM_ADMIN_USERNAMES = [
     i.strip().lstrip("@").lower()
-    for i in os.getenv("TELEGRAM_ADMIN_USER_IDS", "").split(",")
+    for i in os.getenv("TELEGRAM_ADMIN_USERNAMES", "").split(",")
     if i.strip()
 ]
 
