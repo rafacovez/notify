@@ -165,32 +165,6 @@ class SpotifyHandler:
 
         return top_genres
 
-    def get_user_recommended_tracks(self, limit: int = 10):
-        seed_tracks: List[str] = [
-            track["id"] for track in self.get_user_top_tracks(limit=1)
-        ]
-        seed_artists: List[str] = [
-            artist["id"] for artist in self.get_user_top_artists(limit=1)
-        ]
-        seed_genres: Set[str] = self.get_user_top_genres(limit=1)
-
-        try:
-            print(
-                self.user_sp.recommendations(
-                    seed_tracks=seed_tracks,
-                    seed_artists=seed_artists,
-                    seed_genres=seed_genres,
-                    limit=limit,
-                )
-            )
-        except SpotifyException as e:
-            self.handle_exception(e)
-            return None
-
-        recommended_tracks = []
-
-        return recommended_tracks
-
     def get_user_throwback(self) -> List[Dict[str, any]]:
         throwback_track: Dict[str, any] = self.get_user_top_tracks(
             time_range="long_term", offset=0, limit=50

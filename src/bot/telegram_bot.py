@@ -80,10 +80,6 @@ class NotifyTelegramBot(threading.Thread):
                 "func": self.top_ten,
                 "desc": "Get a list of the top 10 songs you've listen to the most lately",
             },
-            "recommended": {
-                "func": self.deprecated_message,
-                "desc": "Get a list of 10 songs you might like based on what you've been listening to",
-            },
             "throwback": {
                 "func": self.throwback,
                 "desc": "Get a track you had on repeat a while ago",
@@ -284,38 +280,6 @@ class NotifyTelegramBot(threading.Thread):
         self.bot.send_message(
             self.chat_id,
             f"⭐ You've got these 10 on repeat lately:\n{top_ten_message}",
-            parse_mode="HTML",
-        )
-
-    def recommended(self) -> None:
-        recommended_tracks = self.spotify.get_user_recommended_tracks()
-
-        recommended_names: List[str] = [track["name"] for track in recommended_tracks]
-        recommended_urls: List[str] = [
-            track["external_urls"]["spotify"] for track in recommended_tracks
-        ]
-        recommended_artists: List[str] = [
-            track["artists"][0]["name"] for track in recommended_tracks
-        ]
-        recommended_artists_urls: List[str] = [
-            track["artists"][0]["external_urls"]["spotify"]
-            for track in recommended_tracks
-        ]
-        recommended_message: str = ""
-
-        for name, url, artist, artist_url in zip(
-            recommended_names,
-            recommended_urls,
-            recommended_artists,
-            recommended_artists_urls,
-        ):
-            recommended_message += (
-                f"\n- <a href='{url}'>{name}</a> by <a href='{artist_url}'>{artist}</a>"
-            )
-
-        self.bot.send_message(
-            self.chat_id,
-            f"❤️ You might like these tracks I found for you:\n{recommended_message}",
             parse_mode="HTML",
         )
 
