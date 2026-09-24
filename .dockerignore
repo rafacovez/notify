@@ -1,49 +1,53 @@
-# Ignore Python virtual environment
+# Git & CI/CD
+.git
+.gitignore
+.github
+*.md
+
+# Virtual environments & package managers
 venv/
-.env.local/
-.env.local*/
+.venv/
+env/
+.env*
+!.env.example
 
-# Ignore Python cache and compiled files
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.py.class
+# Python cache & compiled artifacts
+**/__pycache__
+*.py[cod]
+*$py.class
+*.so
 
-# Ignore IDE and editor files
+# IDE, OS, & editor metadata
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# Ignore Git files
-.git/
-.gitignore
-
-# Ignore local environment files
-.env
-
-# Ignore logs and local data
-logs/
-*.log
-*.sql
-*.csv
-
-# Ignore macOS specific files
 .DS_Store
+Thumbs.db
 
-# Ignore test and development files
+# Testing, coverage, & tooling
 tests/
 test/
 *.test.py
 *.spec
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
 
-# Ignore build and distribution files
+# Build & packaging
 build/
 dist/
 *.egg-info/
 *.egg
 *.whl
 
-# Ignore Spotipy cache (if applicable)
+# Local logs, databases & cache
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.sql
+*.csv
 .cache/
