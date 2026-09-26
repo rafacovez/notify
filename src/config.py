@@ -27,7 +27,11 @@ SPOTIFY_SCOPE = (
 HOST_ADDRESS = os.getenv("HOST_ADDRESS", "http://127.0.0.1")
 HOST_PORT = int(os.getenv("HOST_PORT", 8080))
 
-REDIRECT_URI = f"{HOST_ADDRESS}:{HOST_PORT}/callback"
+# Allow direct override — needed when a reverse proxy terminates TLS on a
+# different port than the container (e.g. https://notify.covez.net/callback)
+REDIRECT_URI = os.getenv(
+    "REDIRECT_URI", f"{HOST_ADDRESS}:{HOST_PORT}/callback"
+)
 
 CONTAINER_HOST = os.getenv("CONTAINER_HOST", "0.0.0.0")
 CONTAINER_PORT = int(os.getenv("CONTAINER_PORT", 8080))
