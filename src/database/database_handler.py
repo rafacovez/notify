@@ -1,5 +1,4 @@
 import os
-import sqlite3
 import threading
 from collections.abc import Callable
 from typing import *
@@ -16,27 +15,11 @@ from config import (
 
 
 class DatabaseHandler:
-    def __init__(self, database: str) -> None:
+    def __init__(self) -> None:
         self.conn = None
         self.cursor_conn = None
         self.lock = threading.Lock()
-
-        self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-        if all([POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT]):
-            self.is_postgres: bool = True
-            self.__connect_postgres()
-        else:
-            self.is_postgres: bool = False
-
-            if not database.endswith(".db"):
-                database += ".db"
-
-            self.sqlite_db = os.path.join(self.base_dir, "data", database)
-
-            os.makedirs(os.path.join(self.base_dir, "data"), exist_ok=True)
-
-            print("NOTIFY WARNING: No Postgres credentials, using SQLite.")
+        self.__connect_postgres()
 
     def __connect_postgres(self) -> None:
         try:
@@ -50,77 +33,46 @@ class DatabaseHandler:
             )
             self.conn.autocommit = True
             self.cursor_conn = self.conn.cursor()
-            print("Successfully connected to PostgreSQL.")
+            print(f"Successfully connected to PostgreSQL database: {POSTGRES_DB_NAME}")
         except Exception as e:
-            print(f"Error connecting to Postgres: {e}")
-
-    def __connect_sqlite(self) -> None:
-        try:
-            os.makedirs(os.path.dirname(self.sqlite_db), exist_ok=True)
-            self.conn = sqlite3.connect(self.sqlite_db)
-            self.cursor_conn = self.conn.cursor()
-        except sqlite3.Error as e:
-            print(f"Error connecting to SQLite: {e}")
-
-    def __disconnect_sqlite(self) -> None:
-        try:
-            self.conn.commit()
-            self.cursor_conn.close()
-            self.conn.close()
-        except sqlite3.Error as e:
-            print(f"Error closing SQLite: {e}")
+            print(f"CRITICAL DATABASE ERROR: Failed to connect to Postgres: {e}")
+            raise
 
     def process(self, func: Callable | None = None) -> Any:
         if func is None:
             return
 
         with self.lock:
-            if not self.is_postgres:
-                self.__connect_sqlite()
-
             def execute_wrapper(query: str, params: tuple = ()):
-                if self.is_postgres:
-                    query = query.replace("?", "%s")
+                query = query.replace("?", "%s")
                 return self.cursor_conn.execute(query, params)
 
             self.execute = execute_wrapper
 
             try:
-                result = func()
-                if not self.is_postgres and self.conn:
-                    self.conn.commit()
-                return result
+                return func()
             except Exception as e:
-                if not self.is_postgres and self.conn:
-                    self.conn.rollback()
                 print(f"DATABASE ERROR: {e}")
                 raise
             finally:
                 del self.execute
-                if not self.is_postgres:
-                    self.__disconnect_sqlite()
 
     def create_tables(self) -> None:
         def logic() -> None:
             base_dir = os.path.dirname(os.path.abspath(__file__))
-            filename = (
-                "postgres_init.sql" if self.is_postgres else "sqlite_init.sql"
-            )  # TODO: dynamize schemas filename
-            schemas_path = os.path.join(base_dir, "schemas", filename)
+            schemas_path = os.path.join(base_dir, "schemas", "postgres_init.sql")
 
-            try:
-                with open(schemas_path, "r") as f:
-                    sql_script = f.read()
+            with open(schemas_path, "r") as f:
+                sql_script = f.read()
 
-                if self.is_postgres:
-                    self.execute(sql_script)
-                else:
-                    self.conn.executescript(sql_script)
-                print(f"Database schemas applied via {filename}")
-            except Exception as e:
-                print(f"Schemas Error: {e}")
+            self.cursor_conn.execute(sql_script)
+            print("Database schemas applied successfully via postgres_init.sql")
 
-        self.process(logic)
+        try:
+            self.process(logic)
+        except Exception as e:
+            print(f"CRITICAL: Failed to apply database schemas: {e}")
+            raise
 
     def add_user(
         self,
@@ -168,7 +120,6 @@ class DatabaseHandler:
             self.execute(
                 "SELECT access_token from users WHERE telegram_user_id = ?", (user,)
             )
-
             return self.cursor_conn.fetchone()[0]
 
         return self.process(logic)
@@ -178,7 +129,6 @@ class DatabaseHandler:
             self.execute(
                 "SELECT refresh_token from users WHERE telegram_user_id = ?", (user,)
             )
-
             return self.cursor_conn.fetchone()[0]
 
         return self.process(logic)
@@ -200,12 +150,23 @@ class DatabaseHandler:
         return self.process(logic)
 
     def add_notify(
-        self, telegram_user_id: int, playlist_id: str, snapshot_id: str
+        self,
+        telegram_user_id: int,
+        playlist_id: str,
+        snapshot_id: str,
+        playlist_name: str | None = None,
+        playlist_url: str | None = None,
     ) -> None:
         def logic() -> None:
             self.execute(
-                "INSERT INTO notify (telegram_user_id, playlist_id, snapshot_id) VALUES (?, ?, ?)",
-                (telegram_user_id, playlist_id, snapshot_id),
+                "INSERT INTO notify (telegram_user_id, playlist_id, snapshot_id, playlist_name, playlist_url) VALUES (?, ?, ?, ?, ?)",
+                (
+                    telegram_user_id,
+                    playlist_id,
+                    snapshot_id,
+                    playlist_name,
+                    playlist_url,
+                ),
             )
 
         self.process(logic)
@@ -240,9 +201,7 @@ class DatabaseHandler:
                     playlist_id,
                 ),
             )
-            notify_id: int = self.cursor_conn.fetchone()
-
-            return notify_id is not None
+            return self.cursor_conn.fetchone() is not None
 
         return self.process(logic)
 
@@ -261,7 +220,7 @@ class DatabaseHandler:
     ) -> None:
         def logic() -> None:
             self.execute(
-                "UPDATE notify SET snapshot_id = ? WHERE telegram_user_id = ? AND playlist_id = ?",
+                "UPDATE notify SET snapshot_id = ?, last_checked_at = NOW() WHERE telegram_user_id = ? AND playlist_id = ?",
                 (snapshot_id, telegram_user_id, playlist_id),
             )
 

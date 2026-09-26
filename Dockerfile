@@ -1,31 +1,49 @@
 # syntax=docker/dockerfile:1
-FROM python:3.13-alpine AS base
+
+# --- BUILDER STAGE ---
+# Install dependencies in a separate stage so build tools don't bloat the final image
+FROM python:3.13-slim-bookworm AS builder
 
 WORKDIR /code
 
-# 1. Performance and Logging optimizations
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# --- DEV STAGE ---
+FROM python:3.13-slim-bookworm AS dev
+
+WORKDIR /code
+
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/code/src
 
-# 2. Install build dependencies, install requirements, then REMOVE dependencies
-# This keeps the image small
-COPY requirements.txt requirements-dev.txt ./
-RUN apk add --no-cache --virtual .build-deps gcc musl-dev libffi-dev python3-dev \
-    && pip install --no-cache-dir --upgrade -r requirements.txt \
-    && apk del .build-deps
+COPY --from=builder /install /usr/local
+COPY requirements-dev.txt ./
+RUN pip install --no-cache-dir -r requirements-dev.txt && pip install --no-cache-dir watchdog
 
 COPY ./src ./src
 
-# --- DEV STAGE ---
-FROM base AS dev
-RUN pip install --no-cache-dir --upgrade -r requirements-dev.txt
-RUN pip install watchdog
-# Added --directory=src so it specifically watches your code
 CMD ["watchmedo", "auto-restart", "--directory=./src", "--pattern=*.py", "--recursive", "--", "python", "src/main.py"]
 
 # --- PROD STAGE ---
-FROM base AS prod
-# Create data dir here so it exists even if volume mount fails
-RUN mkdir -p /code/data
+FROM python:3.13-slim-bookworm AS prod
+
+WORKDIR /code
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/code/src
+
+# slim-bookworm doesn't include CA certificates by default — required for HTTPS
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy only installed packages from the builder — no gcc, musl-dev, etc.
+COPY --from=builder /install /usr/local
+COPY ./src ./src
+
 CMD ["python", "src/main.py"]

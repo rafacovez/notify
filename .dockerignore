@@ -49,5 +49,6 @@ logs/
 *.sqlite
 *.sqlite3
 *.sql
+!src/database/schemas/*.sql
 *.csv
 .cache/

@@ -32,7 +32,7 @@ Notify follows a **service-oriented and modular architecture**:
 - **Telegram Bot:** `pyTelegramBotAPI` [(Telebot)](https://github.com/eternnoir/pyTelegramBotAPI)
 - **Spotify API:** [Spotipy](https://github.com/spotipy-dev/spotipy)
 - **Web Server:** [Flask](https://github.com/pallets/flask) (OAuth2 callback handling)
-- **Database:** [PostgreSQL](https://www.postgresql.org/) (with SQLite fallback)
+- **Database:** [PostgreSQL](https://www.postgresql.org/)
 - **Containerization:** [Docker](https://docs.docker.com/)
 
 ## Environment Configuration
@@ -54,7 +54,7 @@ Use the `.env.example` file as a template.
 | `HOST_PORT` | External port for redirect URI | `8080` |
 | `CONTAINER_HOST` | Flask bind address inside container | `0.0.0.0` |
 | `CONTAINER_PORT` | Flask port inside container | `8080` |
-| `POSTGRES_USER` | PostgreSQL user (leave blank for SQLite) | — |
+| `POSTGRES_USER` | PostgreSQL user (required) | — |
 | `POSTGRES_PASSWORD` | PostgreSQL password | — |
 | `POSTGRES_HOST` | PostgreSQL host | — |
 | `POSTGRES_PORT` | PostgreSQL port | — |
@@ -69,11 +69,11 @@ Notify is fully containerized using Docker, with an emphasis on reproducibility,
 
 ### Multi-Stage Dockerfile
 
-The project uses an Alpine-based **multi-stage Docker build**:
+The project uses a **multi-stage Docker build** based on `python:3.13-slim-bookworm`:
 
-- **base** — Shared Python 3.13 runtime and common dependencies.
-- **dev** — Extends base with development tooling and `watchdog` for hot-reloading.
-- **prod** — Lean runtime image with build-time dependencies removed.
+- **builder** — Installs dependencies into a separate prefix to keep build tools out of the final image.
+- **dev** — Development image with hot-reloading via `watchdog`.
+- **prod** — Lean runtime image that copies only installed packages and source code.
 
 ### CI/CD
 

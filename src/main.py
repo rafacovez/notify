@@ -17,7 +17,6 @@ from config import (
     CONTAINER_PORT,
     MAX_NOTIFY_PLAYLISTS_PER_USER,
     NOTIFY_CHECK_INTERVAL_SECONDS,
-    POSTGRES_DB_NAME,
     REDIRECT_URI,
     SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET,
@@ -81,7 +80,7 @@ class Server(threading.Thread):
                     response: str = requests.post(token_endpoint, data=params)
                     response_data: str = response.json()
 
-                    telegram_user_id: str = request.args.get("state")
+                    telegram_user_id: int = int(request.args.get("state", 0))
 
                     refresh_token: str = response_data.get("refresh_token")
                     access_token: str = response_data.get("access_token")
@@ -126,7 +125,7 @@ def shutdown_handler(sig, frame):
 def main():
     signal.signal(signal.SIGINT, shutdown_handler)
 
-    database_handler = DatabaseHandler(POSTGRES_DB_NAME)
+    database_handler = DatabaseHandler()
 
     spotify_handler = SpotifyHandler(
         client_id=SPOTIFY_CLIENT_ID,

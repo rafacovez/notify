@@ -43,10 +43,19 @@ class SpotifyHandler:
             self.handle_exception(e)
             return None
 
-    def refresh_access_token(self) -> str:
+    def create_user_sp(self, access_token: str) -> Spotify:
+        """Create a Spotify client without mutating shared instance state.
+
+        Used by the notifier thread to avoid clobbering the bot thread's
+        ``self.user_sp`` — see issue #37.
+        """
+        return Spotify(auth=access_token)
+
+    def refresh_access_token(self, refresh_token: str | None = None) -> str:
+        token = refresh_token if refresh_token is not None else self.refresh_token
         try:
             self.access_token: str = self.sp_oauth.refresh_access_token(
-                self.refresh_token
+                token
             )["access_token"]
             return self.access_token
         except SpotifyException as e:

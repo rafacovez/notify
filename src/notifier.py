@@ -43,11 +43,11 @@ def _check_user(
     if not notify_playlists_ids:
         return
 
-    spotify.refresh_token = database.get_refresh_token(user)
-    spotify.access_token = spotify.refresh_access_token()
-    database.store_access_token(spotify.access_token, user)
+    refresh_token = database.get_refresh_token(user)
+    access_token = spotify.refresh_access_token(refresh_token)
+    database.store_access_token(access_token, user)
 
-    user_sp = spotify.get_user_sp(spotify.access_token)
+    user_sp = spotify.create_user_sp(access_token)
 
     for playlist_id in notify_playlists_ids:
         playlist: dict[str, any] = spotify.get_playlist(

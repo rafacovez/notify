@@ -147,16 +147,10 @@ class NotifyTelegramBot(threading.Thread):
                 command_exists = True
 
                 if self.database.user_exists(self.user_id):
-                    self.spotify.refresh_token = self.database.get_refresh_token(
-                        self.user_id
-                    )
-                    self.spotify.access_token = self.spotify.refresh_access_token()
-                    self.database.store_access_token(
-                        self.spotify.access_token, self.user_id
-                    )
-                    self.spotify.user_sp = self.spotify.get_user_sp(
-                        self.spotify.access_token
-                    )
+                    refresh_token = self.database.get_refresh_token(self.user_id)
+                    access_token = self.spotify.refresh_access_token(refresh_token)
+                    self.database.store_access_token(access_token, self.user_id)
+                    self.spotify.user_sp = self.spotify.get_user_sp(access_token)
                     command_func: function = self.commands[
                         command_item.command.strip("/")
                     ]["func"]
@@ -431,6 +425,8 @@ class NotifyTelegramBot(threading.Thread):
                         telegram_user_id=self.user_id,
                         playlist_id=playlist["id"],
                         snapshot_id=playlist["snapshot_id"],
+                        playlist_name=playlist["name"],
+                        playlist_url=playlist["external_urls"]["spotify"],
                     )
                     self.bot.send_message(
                         self.chat_id,
