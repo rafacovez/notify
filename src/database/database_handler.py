@@ -1,16 +1,17 @@
 import os
 import sqlite3
 import threading
-import psycopg2
 from collections.abc import Callable
 from typing import *
 
-from src.config import (
-    POSTGRES_USER,
-    POSTGRES_PASSWORD,
-    POSTGRES_HOST,
-    POSTGRES_PORT,
+import psycopg2
+
+from config import (
     POSTGRES_DB_NAME,
+    POSTGRES_HOST,
+    POSTGRES_PASSWORD,
+    POSTGRES_PORT,
+    POSTGRES_USER,
 )
 
 
@@ -26,7 +27,6 @@ class DatabaseHandler:
             self.is_postgres: bool = True
             self.__connect_postgres()
         else:
-
             self.is_postgres: bool = False
 
             if not database.endswith(".db"):
@@ -70,7 +70,7 @@ class DatabaseHandler:
         except sqlite3.Error as e:
             print(f"Error closing SQLite: {e}")
 
-    def process(self, func: Callable = None) -> Any:
+    def process(self, func: Callable | None = None) -> Any:
         if func is None:
             return
 
@@ -94,7 +94,7 @@ class DatabaseHandler:
                 if not self.is_postgres and self.conn:
                     self.conn.rollback()
                 print(f"DATABASE ERROR: {e}")
-                raise e
+                raise
             finally:
                 del self.execute
                 if not self.is_postgres:
@@ -242,10 +242,7 @@ class DatabaseHandler:
             )
             notify_id: int = self.cursor_conn.fetchone()
 
-            if notify_id is None:
-                return False
-            else:
-                return True
+            return notify_id is not None
 
         return self.process(logic)
 

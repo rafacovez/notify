@@ -1,5 +1,4 @@
 import threading
-import time
 from collections.abc import Callable
 from typing import *
 
@@ -8,7 +7,6 @@ from telebot.types import *
 
 from database.database_handler import DatabaseHandler
 from integrations.spotify.spotify_service import SpotifyHandler
-
 from integrations.spotify.spotify_utils import extract_spotify_id
 
 
@@ -349,7 +347,6 @@ class NotifyTelegramBot(threading.Thread):
         playlist_buttons: List[InlineKeyboardButton] = []
 
         for playlist in displayed_playlists:
-
             playlist_name: str = playlist["name"]
             playlist_id: str = playlist["id"]
 
@@ -445,7 +442,7 @@ class NotifyTelegramBot(threading.Thread):
                 "The playlist you provided is not valid or does not exist.",
             )
 
-    def remove_notify(self, playlist_id: str, telegram_user_id: str = None) -> None:
+    def remove_notify(self, playlist_id: str, telegram_user_id: str | None = None) -> None:
         if not telegram_user_id:
             telegram_user_id = self.user_id
 

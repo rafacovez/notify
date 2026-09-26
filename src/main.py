@@ -1,6 +1,6 @@
-import threading
 import signal
 import sys
+import threading
 import time
 from typing import *
 
@@ -9,24 +9,24 @@ from flask import Flask, render_template, request
 from spotipy import Spotify
 from telebot.types import *
 
-from database.database_handler import DatabaseHandler
-from integrations.spotify.spotify_service import SpotifyHandler
-from bot.telegram_bot import NotifyTelegramBot
 import notifier
+from bot.telegram_bot import NotifyTelegramBot
 from config import (
-    TELEGRAM_BOT_API_TOKEN,
-    TELEGRAM_ADMIN_USER_IDS,
+    COMMAND_COOLDOWN_SECONDS,
+    CONTAINER_HOST,
+    CONTAINER_PORT,
+    MAX_NOTIFY_PLAYLISTS_PER_USER,
+    NOTIFY_CHECK_INTERVAL_SECONDS,
+    POSTGRES_DB_NAME,
+    REDIRECT_URI,
     SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET,
     SPOTIFY_SCOPE,
-    REDIRECT_URI,
-    CONTAINER_HOST,
-    CONTAINER_PORT,
-    POSTGRES_DB_NAME,
-    MAX_NOTIFY_PLAYLISTS_PER_USER,
-    NOTIFY_CHECK_INTERVAL_SECONDS,
-    COMMAND_COOLDOWN_SECONDS,
+    TELEGRAM_ADMIN_USER_IDS,
+    TELEGRAM_BOT_API_TOKEN,
 )
+from database.database_handler import DatabaseHandler
+from integrations.spotify.spotify_service import SpotifyHandler
 
 
 class Server(threading.Thread):
@@ -111,7 +111,7 @@ class Server(threading.Thread):
 
     def start_listening(self) -> None:
         try:
-            print(f"Server is up and running!")
+            print("Server is up and running!")
             self.app.run(host=self.CONTAINER_HOST, port=self.CONTAINER_PORT)
 
         except Exception as e:

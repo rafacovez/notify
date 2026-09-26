@@ -4,31 +4,11 @@ A modular, containerized Telegram bot for Spotify playlist tracking and personal
 
 ![Notify's website homepage](/src/static/homepage.png)
 
-## Table of Contents
-
-- [Project Overview](#project-overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Technology Stack](#technology-stack)
-- [Project Structure](#project-structure)
-- [Environment Configuration](#environment-configuration)
-  - [Environment Variables](#environment-variables)
-- [Docker & Containerization](#docker--containerization)
-  - [Multi-Stage Dockerfile](#multi-stage-dockerfile)
-  - [Docker Compose](#docker-compose)
-  - [Persistence](#persistence)
-- [Developer Experience](#developer-experience)
-- [Running the Project](#running-the-project)
-  - [Production Mode](#production-mode)
-  - [Development Mode](#development-mode)
-- [Roadmap](#roadmap)
-- [License](#license)
-
 ## Project Overview
 
 **Notify** is an open-source Telegram bot designed to monitor Spotify playlists and provide personalized listening insights. It detects playlist changes (track additions and removals) and generates listening statistics such as Top Tracks across short, medium, and long-term periods.
 
-The project emphasizes clean separation of concerns, service-oriented design, and full containerization to support both local development and future production deployments.
+The project emphasizes clean separation of concerns, service-oriented design, and full containerization to support both local development and self-hosted deployments.
 
 ## Features
 
@@ -46,22 +26,42 @@ Notify follows a **service-oriented and modular architecture**:
 - Spotify integration and database access are abstracted behind service interfaces
 - Configuration is centralized and environment-driven
 
-This structure allows the project to scale in complexity without becoming tightly coupled or difficult to maintain.
-
 ## Technology Stack
 
 - **Language:** [Python](https://www.python.org/doc/) 3.13
 - **Telegram Bot:** `pyTelegramBotAPI` [(Telebot)](https://github.com/eternnoir/pyTelegramBotAPI)
 - **Spotify API:** [Spotipy](https://github.com/spotipy-dev/spotipy)
 - **Web Server:** [Flask](https://github.com/pallets/flask) (OAuth2 callback handling)
-- **Database:** [SQLite](https://sqlite.org/docs.html)
-- **Containerization:** [Docker](https://docs.docker.com/), [Docker Compose](https://docs.docker.com/compose/)
+- **Database:** [PostgreSQL](https://www.postgresql.org/) (with SQLite fallback)
+- **Containerization:** [Docker](https://docs.docker.com/)
 
 ## Environment Configuration
 
-All runtime configuration is managed through environment variables loaded from the dedicated `.env` file at the root directory.
+All runtime configuration is managed through environment variables loaded from the `.env` file at the root directory.
 
-This file is required for both local execution and containerized deployments. Use the `.env.example` file for guidence.
+Use the `.env.example` file as a template.
+
+### Environment Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `TELEGRAM_BOT_API_TOKEN` | Telegram Bot API token | — |
+| `TELEGRAM_ADMIN_USER_IDS` | Comma-separated Telegram usernames | — |
+| `SPOTIFY_CLIENT_ID` | Spotify app client ID | — |
+| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret | — |
+| `SPOTIFY_SCOPE` | OAuth scopes string | *(see .env.example)* |
+| `HOST_ADDRESS` | External address for Spotify OAuth redirect | `http://127.0.0.1` |
+| `HOST_PORT` | External port for redirect URI | `8080` |
+| `CONTAINER_HOST` | Flask bind address inside container | `0.0.0.0` |
+| `CONTAINER_PORT` | Flask port inside container | `8080` |
+| `POSTGRES_USER` | PostgreSQL user (leave blank for SQLite) | — |
+| `POSTGRES_PASSWORD` | PostgreSQL password | — |
+| `POSTGRES_HOST` | PostgreSQL host | — |
+| `POSTGRES_PORT` | PostgreSQL port | — |
+| `POSTGRES_DB_NAME` | PostgreSQL database name | `notify` |
+| `MAX_NOTIFY_PLAYLISTS_PER_USER` | Max tracked playlists per user | `3` |
+| `NOTIFY_CHECK_INTERVAL_SECONDS` | Seconds between playlist checks | `1800` |
+| `COMMAND_COOLDOWN_SECONDS` | Per-user command cooldown | `5` |
 
 ## Docker & Containerization
 
@@ -71,66 +71,50 @@ Notify is fully containerized using Docker, with an emphasis on reproducibility,
 
 The project uses an Alpine-based **multi-stage Docker build**:
 
-- **base**  
-  Provides a shared Python 3.13 runtime and common system dependencies.
+- **base** — Shared Python 3.13 runtime and common dependencies.
+- **dev** — Extends base with development tooling and `watchdog` for hot-reloading.
+- **prod** — Lean runtime image with build-time dependencies removed.
 
-- **dev**  
-  Extends the base image with development tooling and `watchdog`, enabling hot-reloading when source files change.
+### CI/CD
 
-- **prod**  
-  Produces a lean runtime image with all build-time dependencies (such as `gcc` and `musl-dev`) removed to reduce image size and attack surface.
-
-This structure ensures fast iteration during development while keeping production images small and secure.
-
-### Docker Compose
-
-Docker Compose is used for orchestration and runtime configuration:
-
-- Environment variables are injected from `.env`
-- Ports are mapped dynamically using variable substitution
-- Multiple compose files can be layered to switch behavior by environment
-
-Example port mapping:
-
-```yaml
-ports:
-  - "${HOST_PORT}:${CONTAINER_PORT}"
-```
-
-### Persistence
-
-Local persistence is handled through a volume mount:
+GitHub Actions automatically builds and pushes multi-platform images (amd64 + arm64) to GHCR on version tags:
 
 ```
-./data  →  /code/data
+ghcr.io/<owner>/notify:latest
+ghcr.io/<owner>/notify:<version>
 ```
 
-This ensures the SQLite database persists across container restarts and rebuilds, making it suitable for development and testing workflows.
+### Self-Hosting (Unraid)
 
-## Running the Project
-
-The application can be executed in two distinct modes, depending on whether stability or rapid iteration is the priority.
-
-### Production Mode
-
-Build and run the optimized production container in detached mode:
+Pull the image from GHCR and run it on your Unraid server:
 
 ```bash
-docker compose up --build -d
+docker pull ghcr.io/<owner>/notify:latest
+
+docker run -d \
+  --name notify \
+  --env-file /path/to/.env \
+  -p 8080:8080 \
+  ghcr.io/<owner>/notify:latest
 ```
 
-### Development Mode
+If using PostgreSQL, make sure the `POSTGRES_HOST` env var points to your Unraid Postgres instance.
 
-Run the application with hot-reloading enabled by combining the base and development compose files:
+## Running Locally (Development)
 
 ```bash
-docker compose \
-  -f docker-compose.yml \
-  -f docker-compose.dev.yml \
-  up --build
-```
+# Create a virtual environment and install dependencies
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
 
-This activates the dev Docker target and watches the source code for changes in real time, making it ideal for quick development.
+# Run with hot-reload (dev stage)
+docker build --target dev -t notify-dev .
+docker run -p 8080:8080 --env-file .env notify-dev
+
+# Or run directly with Python
+python src/main.py
+```
 
 ## License
 

@@ -1,9 +1,8 @@
+import random
 from typing import *
 
 from spotipy import Spotify, SpotifyException
 from spotipy.oauth2 import SpotifyOAuth
-
-import random
 
 
 class SpotifyHandler:
@@ -55,7 +54,7 @@ class SpotifyHandler:
             return None
 
     def get_playlist(
-        self, user_sp: Spotify, playlist_id: str, fields: str = None
+        self, user_sp: Spotify, playlist_id: str, fields: str | None = None
     ) -> Dict[str, any]:
         client: Spotify = user_sp if user_sp is not None else self.user_sp
 
