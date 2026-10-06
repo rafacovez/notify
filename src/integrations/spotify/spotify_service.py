@@ -81,7 +81,7 @@ class SpotifyHandler:
         user_playlists: List[Dict[str, any]] = []
 
         for playlist_id in playlists_ids:
-            playlist = self.get_playlist(playlist_id)
+            playlist = self.get_playlist(None, playlist_id)
             if playlist:
                 user_playlists.append(playlist)
 
