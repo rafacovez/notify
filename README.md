@@ -1,14 +1,18 @@
 # Notify
 
-A modular, containerized Telegram bot for Spotify playlist tracking and personal listening statistics.
+A modular, containerized Telegram bot for Spotify playlist tracking and personal listening
+statistics.
 
 ![Notify's website homepage](/src/static/homepage.png)
 
 ## Project Overview
 
-**Notify** is an open-source Telegram bot designed to monitor Spotify playlists and provide personalized listening insights. It detects playlist changes (track additions and removals) and generates listening statistics such as Top Tracks across short, medium, and long-term periods.
+**Notify** is an open-source Telegram bot designed to monitor Spotify playlists and provide
+personalized listening insights. It detects playlist changes (track additions and removals) and
+generates listening statistics such as Top Tracks across short, medium, and long-term periods.
 
-The project emphasizes clean separation of concerns, service-oriented design, and full containerization to support both local development and self-hosted deployments.
+The project emphasizes clean separation of concerns, service-oriented design, and full
+containerization to support both local development and self-hosted deployments.
 
 ## Features
 
@@ -37,47 +41,51 @@ Notify follows a **service-oriented and modular architecture**:
 
 ## Environment Configuration
 
-All runtime configuration is managed through environment variables loaded from the `.env` file at the root directory.
+All runtime configuration is managed through environment variables loaded from the `.env` file at
+the root directory.
 
 Use the `.env.example` file as a template.
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|---|---|---|
-| `TELEGRAM_BOT_API_TOKEN` | Telegram Bot API token | — |
-| `TELEGRAM_ADMIN_USER_IDS` | Comma-separated Telegram usernames | — |
-| `SPOTIFY_CLIENT_ID` | Spotify app client ID | — |
-| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret | — |
-| `SPOTIFY_SCOPE` | OAuth scopes string | *(see .env.example)* |
-| `HOST_ADDRESS` | External address for Spotify OAuth redirect | `http://127.0.0.1` |
-| `HOST_PORT` | External port for redirect URI | `8080` |
-| `CONTAINER_HOST` | Flask bind address inside container | `0.0.0.0` |
-| `CONTAINER_PORT` | Flask port inside container | `8080` |
-| `POSTGRES_USER` | PostgreSQL user (required) | — |
-| `POSTGRES_PASSWORD` | PostgreSQL password | — |
-| `POSTGRES_HOST` | PostgreSQL host | — |
-| `POSTGRES_PORT` | PostgreSQL port | — |
-| `POSTGRES_DB_NAME` | PostgreSQL database name | `notify` |
-| `MAX_NOTIFY_PLAYLISTS_PER_USER` | Max tracked playlists per user | `3` |
-| `NOTIFY_CHECK_INTERVAL_SECONDS` | Seconds between playlist checks | `1800` |
-| `COMMAND_COOLDOWN_SECONDS` | Per-user command cooldown | `5` |
+| Variable                        | Description                                 | Default              |
+| ------------------------------- | ------------------------------------------- | -------------------- |
+| `TELEGRAM_BOT_API_TOKEN`        | Telegram Bot API token                      | —                    |
+| `TELEGRAM_ADMIN_USERNAMES`      | Comma-separated Telegram usernames          | —                    |
+| `SPOTIFY_CLIENT_ID`             | Spotify app client ID                       | —                    |
+| `SPOTIFY_CLIENT_SECRET`         | Spotify app client secret                   | —                    |
+| `SPOTIFY_SCOPE`                 | OAuth scopes string                         | _(see .env.example)_ |
+| `HOST_ADDRESS`                  | External address for Spotify OAuth redirect | `http://127.0.0.1`   |
+| `HOST_PORT`                     | External port for redirect URI              | `8080`               |
+| `CONTAINER_HOST`                | Flask bind address inside container         | `0.0.0.0`            |
+| `CONTAINER_PORT`                | Flask port inside container                 | `8080`               |
+| `POSTGRES_USER`                 | PostgreSQL user (required)                  | —                    |
+| `POSTGRES_PASSWORD`             | PostgreSQL password                         | —                    |
+| `POSTGRES_HOST`                 | PostgreSQL host                             | —                    |
+| `POSTGRES_PORT`                 | PostgreSQL port                             | —                    |
+| `POSTGRES_DB_NAME`              | PostgreSQL database name                    | `notify`             |
+| `MAX_NOTIFY_PLAYLISTS_PER_USER` | Max tracked playlists per user              | `3`                  |
+| `NOTIFY_CHECK_INTERVAL_SECONDS` | Seconds between playlist checks             | `1800`               |
+| `COMMAND_COOLDOWN_SECONDS`      | Per-user command cooldown                   | `5`                  |
 
 ## Docker & Containerization
 
-Notify is fully containerized using Docker, with an emphasis on reproducibility, minimal runtime images, and a clean separation between development and production environments.
+Notify is fully containerized using Docker, with an emphasis on reproducibility, minimal runtime
+images, and a clean separation between development and production environments.
 
 ### Multi-Stage Dockerfile
 
 The project uses a **multi-stage Docker build** based on `python:3.13-slim-bookworm`:
 
-- **builder** — Installs dependencies into a separate prefix to keep build tools out of the final image.
+- **builder** — Installs dependencies into a separate prefix to keep build tools out of the final
+  image.
 - **dev** — Development image with hot-reloading via `watchdog`.
 - **prod** — Lean runtime image that copies only installed packages and source code.
 
 ### CI/CD
 
-GitHub Actions automatically builds and pushes multi-platform images (amd64 + arm64) to GHCR on version tags:
+GitHub Actions automatically builds and pushes multi-platform images (amd64 + arm64) to GHCR on
+version tags:
 
 ```
 ghcr.io/<owner>/notify:latest
