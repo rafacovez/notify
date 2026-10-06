@@ -21,7 +21,7 @@ from config import (
     SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET,
     SPOTIFY_SCOPE,
-    TELEGRAM_ADMIN_USER_IDS,
+    TELEGRAM_ADMIN_USERNAMES,
     TELEGRAM_BOT_API_TOKEN,
 )
 from database.database_handler import DatabaseHandler
@@ -136,7 +136,7 @@ def main():
 
     bot = NotifyTelegramBot(
         bot_token=TELEGRAM_BOT_API_TOKEN,
-        admin_user_ids=TELEGRAM_ADMIN_USER_IDS,
+        admin_user_ids=TELEGRAM_ADMIN_USERNAMES,
         max_playlists_per_user=MAX_NOTIFY_PLAYLISTS_PER_USER,
         notify_check_interval_seconds=NOTIFY_CHECK_INTERVAL_SECONDS,
         command_cooldown_seconds=COMMAND_COOLDOWN_SECONDS,

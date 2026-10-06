@@ -90,7 +90,10 @@ class NotifyTelegramBot(threading.Thread):
         self.command_list: List[BotCommand] = []
         for key, val in self.commands.items():
             self.command_list.append(BotCommand(f"/{key}", val.get("desc", "")))
-        self.bot.set_my_commands(self.command_list)
+        try:
+            self.bot.set_my_commands(self.command_list)
+        except Exception as e:
+            print(f"Warning: could not set bot commands (Telegram unreachable?): {e}")
 
     def __do_nothing(self) -> None:
         pass
@@ -115,6 +118,13 @@ class NotifyTelegramBot(threading.Thread):
 
         parts = self.callback.split(":")
         action = parts[0]
+
+        # Refresh Spotify token for this user before any action that needs it
+        if self.database.user_exists(self.user_id):
+            refresh_token = self.database.get_refresh_token(self.user_id)
+            access_token = self.spotify.refresh_access_token(refresh_token)
+            self.database.store_access_token(access_token, self.user_id)
+            self.spotify.user_sp = self.spotify.get_user_sp(access_token)
 
         if len(parts) >= 3 and parts[1] in ("next", "back"):
             try:
@@ -382,7 +392,7 @@ class NotifyTelegramBot(threading.Thread):
 
         if len(parts) > 1:
             playlist_id = extract_spotify_id(parts[1].strip())
-            playlist = self.spotify.get_playlist(playlist_id)
+            playlist = self.spotify.get_playlist(None, playlist_id)
 
             print(playlist)
 
@@ -402,7 +412,7 @@ class NotifyTelegramBot(threading.Thread):
             )
 
     def add_notify(self, playlist_id: str) -> None:
-        playlist: Dict[str, any] = self.spotify.get_playlist(playlist_id)
+        playlist: Dict[str, any] = self.spotify.get_playlist(None, playlist_id)
 
         if playlist:
             if self.database.playlist_exists(self.user_id, playlist["id"]):
@@ -442,7 +452,7 @@ class NotifyTelegramBot(threading.Thread):
         if not telegram_user_id:
             telegram_user_id = self.user_id
 
-        playlist: Dict[str, any] = self.spotify.get_playlist(playlist_id)
+        playlist: Dict[str, any] = self.spotify.get_playlist(None, playlist_id)
 
         if playlist:
             if self.database.playlist_exists(telegram_user_id, playlist["id"]):
