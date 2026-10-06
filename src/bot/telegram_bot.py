@@ -103,7 +103,10 @@ class NotifyTelegramBot(threading.Thread):
         self.user_id: int = self.message.from_user.id
         self.chat_id: int = self.message.chat.id
 
-        self.bot.send_chat_action(self.chat_id, "typing")
+        try:
+            self.bot.send_chat_action(self.chat_id, "typing")
+        except Exception:
+            pass  # Don't let a flaky Telegram connection kill the command
 
         if message.content_type == "text" and message.text.strip().startswith("/"):
             self.determine_function()
@@ -236,6 +239,13 @@ class NotifyTelegramBot(threading.Thread):
 
     def last_played(self) -> None:
         last_played: Dict[str, any] = self.spotify.get_user_last_played()
+
+        if last_played is None:
+            self.bot.send_message(
+                self.chat_id,
+                "Couldn't fetch your recently played tracks. Try again later.",
+            )
+            return
 
         track_name: str = last_played["name"]
         track_url: str = last_played["external_urls"]["spotify"]
